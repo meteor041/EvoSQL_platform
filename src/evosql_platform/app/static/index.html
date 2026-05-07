@@ -1,0 +1,41 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EvoSQL Campus Demo</title>
+  <style>
+    :root{--bg:#f3efe5;--paper:#fffaf2;--ink:#17313e;--accent:#bb5a3c;--soft:#f3d7bf;--muted:#6d7e85;--line:#d8c8b6}
+    *{box-sizing:border-box}body{margin:0;font-family:Georgia,"Times New Roman",serif;background:radial-gradient(circle at top left,#fdf8ee,var(--bg));color:var(--ink)}
+    .shell{max-width:1100px;margin:0 auto;padding:32px 20px 48px}.hero,.panel{border:1px solid var(--line);border-radius:24px;background:var(--paper);box-shadow:0 20px 50px rgba(23,49,62,.08)}
+    .hero{padding:28px;background:linear-gradient(135deg,rgba(255,250,242,.95),rgba(243,215,191,.82))}h1{margin:0 0 12px;font-size:38px}.sub{color:var(--muted);margin-bottom:20px;line-height:1.6}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--soft);color:var(--accent);margin-right:8px;margin-bottom:8px}.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-top:24px}.panel{padding:20px}
+    textarea,input,select,button{width:100%;font:inherit;border-radius:14px}textarea,input,select{padding:14px;border:1px solid var(--line);background:#fff;margin-bottom:12px}button{border:none;padding:14px;background:var(--ink);color:#fff;cursor:pointer}
+    pre{white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;overflow:auto}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left}.trace{margin:0;padding-left:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}h1{font-size:30px}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <h1>校园智慧问数平台</h1>
+      <div class="sub">EvoSQL Demo 优先版：支持校园合成库问数、澄清追问、SQL 证据、审计日志与安全状态展示。</div>
+      <div class="badge">Campus Demo</div><div class="badge">FastAPI</div><div class="badge">SQLite Sandbox</div>
+    </section>
+    <div class="grid">
+      <section class="panel"><h2>发起问数</h2><input id="session" value="demo-session" /><select id="domain"><option value="campus">campus</option><option value="bird">bird</option></select><textarea id="question" rows="4">统计各学院当前学生人数</textarea><button onclick="submitQuery()">运行查询</button><div id="clarify"></div></section>
+      <section class="panel"><h2>结果摘要</h2><div id="summary">尚未执行</div><h3>SQL</h3><pre id="sql"></pre><h3>命中表</h3><div id="tables"></div></section>
+      <section class="panel"><h2>结果表</h2><div id="result"></div></section>
+      <section class="panel"><h2>推理轨迹</h2><ol class="trace" id="trace"></ol><h2>安全检查</h2><pre id="safety"></pre></section>
+    </div>
+  </div>
+  <script>
+    let currentTaskId=null;
+    async function submitQuery(){const payload={session_id:document.getElementById('session').value,question:document.getElementById('question').value,domain:document.getElementById('domain').value,user_id:'demo-user',role:'admin'};const res=await fetch('/api/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await res.json();currentTaskId=data.task_id;if(data.requires_clarification){renderClarification(data)}else{document.getElementById('clarify').innerHTML=''}await loadTask(data.task_id)}
+    function renderClarification(data){const options=(data.clarification_options||[]).map(opt=>`<button onclick="submitFollowup('${opt}')" style="margin-top:8px;">${opt}</button>`).join('');document.getElementById('clarify').innerHTML=`<div style="margin-top:16px;"><strong>${data.clarification_question}</strong>${options}</div>`}
+    async function submitFollowup(answer){const res=await fetch(`/api/query/${currentTaskId}/followup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({answer})});const data=await res.json();currentTaskId=data.task_id;document.getElementById('clarify').innerHTML='';await loadTask(data.task_id)}
+    async function loadTask(taskId){const res=await fetch(`/api/query/${taskId}`);const data=await res.json();document.getElementById('summary').innerText=data.summary_text||data.error||data.status;document.getElementById('sql').innerText=data.final_sql||'';document.getElementById('tables').innerHTML=(data.used_tables||[]).map(t=>`<span class="badge">${t}</span>`).join('');document.getElementById('safety').innerText=JSON.stringify(data.safety_checks||[],null,2);document.getElementById('trace').innerHTML=(data.trace_steps||[]).map(step=>`<li>${step.iteration}: [${step.strategy}] ${step.summary}</li>`).join('');renderTable(data.result_rows||[])}
+    function renderTable(rows){if(!rows.length){document.getElementById('result').innerHTML='<div>无数据</div>';return;}const headers=Object.keys(rows[0]);const th=headers.map(h=>`<th>${h}</th>`).join('');const tr=rows.map(row=>`<tr>${headers.map(h=>`<td>${row[h]??''}</td>`).join('')}</tr>`).join('');document.getElementById('result').innerHTML=`<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`}
+  </script>
+</body>
+</html>

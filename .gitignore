@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+
+frontend/node_modules/
+frontend/dist/
+frontend/*.log
+*.log
+
+new_frontend/
+data/
+upload/
