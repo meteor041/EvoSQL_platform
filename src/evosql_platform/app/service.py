@@ -32,7 +32,7 @@ class QueryService:
         self.knowledge_resolver = DomainKnowledgeResolver()
         self.qwen_client = QwenClient()
         self.demo_campus_client = DemoCampusLLMClient()
-        self.bird_loader = BirdDatasetLoader(BIRD_DIR)
+        self.bird_loader: BirdDatasetLoader | None = None
 
     def create_query(self, session_id: str, question: str, user_id: str, role: str, domain: str, llm_mode: str | None = None) -> QueryTask:
         task_id = uuid.uuid4().hex
@@ -278,9 +278,15 @@ class QueryService:
         )
         return client.test_connection()
 
+    def _get_bird_loader(self) -> BirdDatasetLoader:
+        if self.bird_loader is None:
+            self.bird_loader = BirdDatasetLoader(BIRD_DIR)
+        return self.bird_loader
+
     def _run_bird_demo(self, question: str, user_id: str, role: str) -> tuple[EngineResult, dict[str, Any] | None]:
-        sample = self.bird_loader.get_sample(0)
-        db_path = self.bird_loader.get_db_path(sample["db_id"])
+        bird_loader = self._get_bird_loader()
+        sample = bird_loader.get_sample(0)
+        db_path = bird_loader.get_db_path(sample["db_id"])
         schema = self.schema_registry.load_sqlite_schema(db_path)
         context = ContextState(
             instruction="Use the reference SQL to validate the pipeline.",
