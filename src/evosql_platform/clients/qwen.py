@@ -20,13 +20,14 @@ class QwenClient(LLMClient):
         temperature: float = 0.4,
         timeout_seconds: float = 45.0,
         max_retries: int = 2,
+        base_url: str | None = None,
     ) -> None:
         self.model = model or os.getenv("OPENROUTER_MODEL", "qwen/qwen3.6-plus:free")
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         self.temperature = temperature
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
-        self.base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
+        self.base_url = base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
         self.referer = os.getenv("OPENROUTER_REFERER", "http://localhost")
         self.title = os.getenv("OPENROUTER_TITLE", "EvoSQLPlatform")
 

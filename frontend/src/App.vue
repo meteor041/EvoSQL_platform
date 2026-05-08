@@ -173,6 +173,19 @@ const llmKpis = computed(() => [
   { label: '默认模型', value: defaultLlm.value?.displayName || 'n/a', note: defaultLlm.value?.provider || 'n/a' },
   { label: '作用域', value: String(new Set(state.llmConfigs.map((item) => item.scope)).size), note: 'domains' }
 ])
+const llmModeOptions = computed(() => [
+  { value: 'auto', label: 'auto', note: '默认路由' },
+  { value: 'qwen', label: 'qwen', note: '环境变量' },
+  { value: 'mock', label: 'mock', note: '本地演示' },
+  ...state.llmConfigs
+    .filter((item) => item.enabled)
+    .map((item) => ({
+      value: `config:${item.id}`,
+      label: item.displayName,
+      note: `${providerLabel(item.provider)} · ${item.model}`
+    }))
+])
+const selectedLlmModeOption = computed(() => llmModeOptions.value.find((item) => item.value === state.llmMode))
 
 function domainLabel(value) {
   const labels = { campus: '校园综合库', bird: 'BIRD 数据集' }
@@ -181,6 +194,10 @@ function domainLabel(value) {
 
 function modeLabel(value) {
   const labels = { auto: 'auto', qwen: 'qwen', mock: 'mock' }
+  if (String(value || '').startsWith('config:')) {
+    const id = String(value).split(':', 2)[1]
+    return state.llmConfigs.find((item) => item.id === id)?.displayName || 'custom LLM'
+  }
   return labels[value] || value || 'n/a'
 }
 
@@ -222,6 +239,9 @@ async function loadLlmConfigs() {
     const data = await readJsonResponse(res, 'Load LLM settings failed')
     if (!res.ok) throw new Error(data.detail || 'Load LLM settings failed')
     state.llmConfigs = (data.items || []).map(normalizeLlmConfig)
+    if (!llmModeOptions.value.some((item) => item.value === state.llmMode)) {
+      state.llmMode = 'auto'
+    }
   } catch (error) {
     state.error = error.message || String(error)
   } finally {
@@ -808,10 +828,11 @@ loadLlmConfigs()
                     <div class="meta-field">
                       <label class="field-label">LLM Mode</label>
                       <select v-model="state.llmMode" class="select">
-                        <option value="auto">auto</option>
-                        <option value="qwen">qwen</option>
-                        <option value="mock">mock</option>
+                        <option v-for="item in llmModeOptions" :key="item.value" :value="item.value">
+                          {{ item.label }}
+                        </option>
                       </select>
+                      <div class="field-hint">{{ selectedLlmModeOption?.note || 'n/a' }}</div>
                     </div>
                     <div class="meta-field">
                       <label class="field-label">权限角色</label>

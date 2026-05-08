@@ -515,6 +515,16 @@ pre {
   display: block;
 }
 
+.field-hint {
+  margin-top: 5px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .chip {
   display: inline-flex;
   align-items: center;

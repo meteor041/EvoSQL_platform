@@ -160,6 +160,13 @@ class LLMSettingsStore:
             raise KeyError(config_id)
         return self._public_row(row)
 
+    def get_private_config(self, config_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM llm_configs WHERE id = ?", (config_id,)).fetchone()
+        if row is None:
+            raise KeyError(config_id)
+        return self._private_row(row)
+
     def set_default(self, config_id: str) -> dict[str, Any]:
         with self._lock, self._connect() as conn:
             row = conn.execute("SELECT id FROM llm_configs WHERE id = ?", (config_id,)).fetchone()
@@ -258,6 +265,11 @@ class LLMSettingsStore:
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
         }
+
+    def _private_row(self, row: sqlite3.Row) -> dict[str, Any]:
+        public = self._public_row(row)
+        public["apiKey"] = row["api_key"]
+        return public
 
     def _mask_secret(self, value: str) -> str:
         if not value:

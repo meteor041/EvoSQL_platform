@@ -1,4 +1,6 @@
 from evosql_platform.app.llm_settings import LLMSettingsStore
+from evosql_platform.app.service import QueryService
+from evosql_platform.clients.mock import DemoCampusLLMClient
 
 
 def test_llm_settings_store_persists_configs(tmp_path) -> None:
@@ -28,3 +30,12 @@ def test_llm_settings_store_persists_configs(tmp_path) -> None:
     reopened = LLMSettingsStore(db_path)
     configs = reopened.list_configs()
     assert any(item["id"] == created["id"] for item in configs)
+
+
+def test_query_service_resolves_configured_mock_client(tmp_path) -> None:
+    service = QueryService()
+    service.llm_settings_store = LLMSettingsStore(tmp_path / "settings.sqlite")
+    client, source_label, requires_api_key = service._resolve_campus_client("config:mock-campus")
+    assert isinstance(client, DemoCampusLLMClient)
+    assert source_label == "mock"
+    assert requires_api_key is False

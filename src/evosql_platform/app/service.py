@@ -119,6 +119,8 @@ class QueryService:
 
     def _campus_mode(self, requested_mode: str | None = None) -> str:
         mode = (requested_mode or os.getenv("CAMPUS_LLM_MODE", "auto")).strip().lower()
+        if mode.startswith("config:"):
+            return mode
         if mode not in {"auto", "mock", "qwen"}:
             mode = "auto"
         if mode == "auto":
@@ -138,15 +140,23 @@ class QueryService:
         knowledge = self.knowledge_resolver.resolve(question)
         pending = None
         mode = self._campus_mode(llm_mode)
-        use_qwen = mode == "qwen_openrouter"
-        campus_client: LLMClient = self.qwen_client if use_qwen else self.demo_campus_client
-
-        if use_qwen and not self.qwen_client.is_available:
+        try:
+            campus_client, source_label, requires_api_key = self._resolve_campus_client(mode)
+        except KeyError:
             result = EngineResult(
                 status="failed",
-                error="OPENROUTER_API_KEY is not configured. Real EvoSQL campus mode requires Qwen.",
+                error=f"LLM config not found: {mode}",
                 execution_mode=mode,
-                result_source="qwen",
+                result_source="llm_config",
+            )
+            return result, pending
+
+        if requires_api_key and not getattr(campus_client, "is_available", False):
+            result = EngineResult(
+                status="failed",
+                error=f"API key is not configured for {source_label}.",
+                execution_mode=mode,
+                result_source=source_label,
             )
             return result, pending
 
@@ -159,7 +169,16 @@ class QueryService:
             user_id=user_id,
             role=role,
         )
-        schema_link = campus_client.select_schema(linking_context, max_tables=6)
+        try:
+            schema_link = campus_client.select_schema(linking_context, max_tables=6)
+        except Exception as exc:
+            result = EngineResult(
+                status="failed",
+                error=f"{source_label} schema linking failed: {exc}",
+                execution_mode=mode,
+                result_source=source_label,
+            )
+            return result, pending
         linked_tables = self._expand_linked_tables(full_schema, schema_link.get("tables", []), knowledge)
         schema_subset = self.schema_registry.subset(full_schema, linked_tables)
         if not schema_subset.get("tables"):
@@ -187,21 +206,20 @@ class QueryService:
         try:
             result = engine.run(context)
         except Exception as exc:
-            source = "Qwen" if use_qwen else "mock"
             result = EngineResult(
                 status="failed",
-                error=f"{source} execution failed: {exc}",
+                error=f"{source_label} execution failed: {exc}",
                 execution_mode=mode,
-                result_source="qwen" if use_qwen else "mock",
+                result_source=source_label,
             )
             return result, pending
 
         result.execution_mode = mode
-        result.result_source = "qwen" if use_qwen else "mock"
+        result.result_source = source_label
         result.attempted_sql = result.final_sql
         result.attempted_result_rows = list(result.result_rows)
         result.attempted_candidate_records = list(result.candidate_records)
-        self._mark_candidate_statuses(result, source_prefix="real" if use_qwen else "mock")
+        self._mark_candidate_statuses(result, source_prefix="real" if source_label != "mock" else "mock")
         result.chart_spec = {
             "schema_linking": knowledge["schema_linking"],
         }
@@ -215,6 +233,26 @@ class QueryService:
                 "followups": knowledge.get("followups", {}),
             }
         return result, pending
+
+    def _resolve_campus_client(self, mode: str) -> tuple[LLMClient, str, bool]:
+        if mode.startswith("config:"):
+            config_id = mode.split(":", 1)[1]
+            config = self.llm_settings_store.get_private_config(config_id)
+            provider = str(config.get("provider", "")).lower()
+            if provider == "mock":
+                return self.demo_campus_client, "mock", False
+            client = QwenClient(
+                model=config.get("model"),
+                api_key=config.get("apiKey"),
+                temperature=float(config.get("temperature", 0.4)),
+                timeout_seconds=float(config.get("timeoutSeconds", 45)),
+                max_retries=int(config.get("maxRetries", 2)),
+                base_url=config.get("baseUrl"),
+            )
+            return client, f"{provider}:{config.get('displayName') or config_id}", True
+        if mode == "qwen_openrouter":
+            return self.qwen_client, "qwen", True
+        return self.demo_campus_client, "mock", False
 
     def _run_bird_demo(self, question: str, user_id: str, role: str) -> tuple[EngineResult, dict[str, Any] | None]:
         sample = self.bird_loader.get_sample(0)
