@@ -91,6 +91,37 @@ def test_query_service_resolves_configured_mock_client(tmp_path) -> None:
     assert requires_api_key is False
 
 
+def test_query_service_tests_mock_llm_config(tmp_path) -> None:
+    service = QueryService()
+    service.llm_settings_store = LLMSettingsStore(tmp_path / "settings.sqlite")
+
+    result = service.test_llm_config("mock-campus")
+
+    assert result["ok"] is True
+    assert result["provider"] == "mock"
+    assert "local mock client" in result["response_preview"]
+
+
+def test_openai_compatible_test_connection_uses_chat_completions_url() -> None:
+    class HealthyClient(QwenClient):
+        def _request(self, *args, **kwargs) -> str:
+            return '{"ok": true}'
+
+    client = HealthyClient(
+        model="gpt-test",
+        api_key="sk-test",
+        base_url="https://api.meteor041.com",
+        provider_label="ChatGPT",
+    )
+
+    result = client.test_connection()
+
+    assert result["ok"] is True
+    assert result["provider"] == "ChatGPT"
+    assert result["request_url"] == "https://api.meteor041.com/v1/chat/completions"
+    assert result["response_preview"] == '{"ok": true}'
+
+
 def test_openai_compatible_schema_linking_falls_back_to_heuristics() -> None:
     class BusyDeepSeekClient(QwenClient):
         def _request(self, *args, **kwargs) -> str:

@@ -255,6 +255,29 @@ class QueryService:
             return self.qwen_client, "qwen", True
         return self.demo_campus_client, "mock", False
 
+    def test_llm_config(self, config_id: str) -> dict[str, Any]:
+        config = self.llm_settings_store.get_private_config(config_id)
+        provider = str(config.get("provider", "")).lower()
+        if provider == "mock":
+            return {
+                "ok": True,
+                "provider": "mock",
+                "model": config.get("model"),
+                "base_url": config.get("baseUrl"),
+                "elapsed_ms": 0,
+                "response_preview": "local mock client is available",
+            }
+        client = QwenClient(
+            model=config.get("model"),
+            api_key=config.get("apiKey"),
+            temperature=float(config.get("temperature", 0.4)),
+            timeout_seconds=float(config.get("timeoutSeconds", 45)),
+            max_retries=int(config.get("maxRetries", 2)),
+            base_url=config.get("baseUrl"),
+            provider_label=str(config.get("displayName") or provider or "OpenAI-compatible endpoint"),
+        )
+        return client.test_connection()
+
     def _run_bird_demo(self, question: str, user_id: str, role: str) -> tuple[EngineResult, dict[str, Any] | None]:
         sample = self.bird_loader.get_sample(0)
         db_path = self.bird_loader.get_db_path(sample["db_id"])

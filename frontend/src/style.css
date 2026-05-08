@@ -1575,6 +1575,31 @@ pre {
   background: var(--surface);
 }
 
+.llm-test-result {
+  grid-column: 1 / -1;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.llm-test-result.testing {
+  background: var(--blue-soft);
+  color: var(--blue-ink);
+}
+
+.llm-test-result.success {
+  background: var(--green-soft);
+  color: #15803d;
+}
+
+.llm-test-result.failed {
+  background: var(--red-soft);
+  color: #991b1b;
+}
+
 .llm-row:last-child {
   border-bottom: none;
 }

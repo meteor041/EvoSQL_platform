@@ -98,6 +98,7 @@ const state = reactive({
   ],
   llmForm: emptyLlmForm(),
   editingLlmId: '',
+  llmTestResults: {},
   llmFormError: '',
   llmSavedNotice: ''
 })
@@ -414,6 +415,25 @@ async function toggleLlm(id) {
     await loadLlmConfigs()
   } catch (error) {
     state.error = error.message || String(error)
+  }
+}
+
+async function testLlmConfig(id) {
+  state.llmTestResults[id] = { status: 'testing', message: 'testing...' }
+  try {
+    const res = await fetch(`/api/settings/llms/${id}/test`, { method: 'POST' })
+    const data = await readJsonResponse(res, 'Test LLM setting failed')
+    if (!res.ok) throw new Error(data.detail || 'Test LLM setting failed')
+    state.llmTestResults[id] = {
+      status: 'success',
+      message: `${data.elapsed_ms ?? 0} ms · ${data.response_preview || 'ok'}`
+    }
+    showLlmNotice('模型响应测试通过。')
+  } catch (error) {
+    state.llmTestResults[id] = {
+      status: 'failed',
+      message: error.message || String(error)
+    }
   }
 }
 
@@ -1814,9 +1834,15 @@ loadLlmConfigs()
                       <button class="btn sm" type="button" @click="editLlmConfig(item)">
                         <IconSymbol name="cog" :size="13" />编辑
                       </button>
+                      <button class="btn sm" type="button" :disabled="state.llmTestResults[item.id]?.status === 'testing'" @click="testLlmConfig(item.id)">
+                        <IconSymbol name="play" :size="13" />测试
+                      </button>
                       <button class="btn sm danger" type="button" @click="removeLlm(item.id)">
                         <IconSymbol name="trash" :size="13" />删除
                       </button>
+                    </div>
+                    <div v-if="state.llmTestResults[item.id]" class="llm-test-result" :class="state.llmTestResults[item.id].status">
+                      {{ state.llmTestResults[item.id].message }}
                     </div>
                   </article>
                 </div>

@@ -117,6 +117,26 @@ class QwenClient(LLMClient):
         )
         return self._clean_summary_text(content)
 
+    def test_connection(self) -> dict[str, Any]:
+        if not self.api_key:
+            raise RuntimeError(f"API key is not configured for {self.provider_label}.")
+        started = time.monotonic()
+        content = self._request(
+            system_prompt="You are a health check endpoint for an OpenAI-compatible chat model.",
+            user_prompt='Reply with exactly this JSON: {"ok": true}',
+            response_format={"type": "json_object"},
+        )
+        elapsed_ms = round((time.monotonic() - started) * 1000)
+        return {
+            "ok": True,
+            "provider": self.provider_label,
+            "model": self.model,
+            "base_url": self.base_url,
+            "request_url": self.request_url,
+            "elapsed_ms": elapsed_ms,
+            "response_preview": self._shorten(content, 160),
+        }
+
     def _request(
         self,
         system_prompt: str,

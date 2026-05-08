@@ -224,6 +224,16 @@ def set_llm_enabled(config_id: str, payload: LLMEnabledRequest) -> dict:
     return {"item": item}
 
 
+@app.post("/api/settings/llms/{config_id}/test")
+def test_llm_config(config_id: str) -> dict:
+    try:
+        return service.test_llm_config(config_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="LLM config not found") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.delete("/api/settings/llms/{config_id}")
 def delete_llm_config(config_id: str) -> dict:
     try:
