@@ -21,6 +21,7 @@ class QwenClient(LLMClient):
         timeout_seconds: float = 45.0,
         max_retries: int = 2,
         base_url: str | None = None,
+        provider_label: str | None = None,
     ) -> None:
         self.model = model or os.getenv("OPENROUTER_MODEL", "qwen/qwen3.6-plus:free")
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
@@ -28,6 +29,7 @@ class QwenClient(LLMClient):
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.base_url = base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
+        self.provider_label = provider_label or self._infer_provider_label(self.base_url)
         self.referer = os.getenv("OPENROUTER_REFERER", "http://localhost")
         self.title = os.getenv("OPENROUTER_TITLE", "EvoSQLPlatform")
 
@@ -40,18 +42,26 @@ class QwenClient(LLMClient):
         if not self.api_key:
             return {
                 "tables": heuristic_tables,
-                "reasoning": "Used heuristic schema linking because OPENROUTER_API_KEY is not configured.",
+                "reasoning": f"Used heuristic schema linking because API key is not configured for {self.provider_label}.",
             }
-        content = self._request(
-            system_prompt=(
-                "You are an expert schema linker for Text-to-SQL. "
-                "Select only the most relevant SQLite tables for the user question. "
-                "Prefer a compact subset that still supports the needed joins and aggregations. "
-                "Return strictly valid JSON with keys: tables, reasoning."
-            ),
-            user_prompt=self._build_schema_link_prompt(context, max_tables, heuristic_tables),
-            response_format={"type": "json_object"},
-        )
+        try:
+            content = self._request(
+                system_prompt=(
+                    "You are an expert schema linker for Text-to-SQL. "
+                    "Select only the most relevant SQLite tables for the user question. "
+                    "Prefer a compact subset that still supports the needed joins and aggregations. "
+                    "Return strictly valid JSON with keys: tables, reasoning."
+                ),
+                user_prompt=self._build_schema_link_prompt(context, max_tables, heuristic_tables),
+                response_format={"type": "json_object"},
+            )
+        except Exception as exc:
+            return {
+                "tables": heuristic_tables,
+                "reasoning": f"{self.provider_label} schema linking request failed; used heuristic fallback. Detail: {exc}",
+                "heuristic_tables": heuristic_tables,
+                "fallback_reason": str(exc),
+            }
         data = self._parse_json_object(content, "schema_linking")
         selected = [item for item in data.get("tables", []) if isinstance(item, str)]
         selected = [item for item in selected if item in context.schema_subset.get("tables", {})]
@@ -70,7 +80,7 @@ class QwenClient(LLMClient):
 
     def generate_candidates(self, context: ContextState, sample_size: int) -> list[str]:
         if not self.api_key:
-            raise RuntimeError("OPENROUTER_API_KEY is not configured.")
+            raise RuntimeError(f"API key is not configured for {self.provider_label}.")
         content = self._request(
             system_prompt=(
                 "You are an expert Text-to-SQL assistant implementing an EvoSQL-style workflow. "
@@ -87,7 +97,7 @@ class QwenClient(LLMClient):
 
     def summarize_query_result(self, question: str, rows: list[dict[str, Any]]) -> str:
         if not self.api_key:
-            raise RuntimeError("OPENROUTER_API_KEY is not configured.")
+            raise RuntimeError(f"API key is not configured for {self.provider_label}.")
         preview = json.dumps(rows[:10], ensure_ascii=False)
         content = self._request(
             system_prompt=(
@@ -132,7 +142,7 @@ class QwenClient(LLMClient):
                 if attempt >= self.max_retries:
                     break
                 time.sleep(1.5 * (attempt + 1))
-        raise RuntimeError(f"OpenRouter request failed: {last_error}") from last_error
+        raise RuntimeError(f"{self.provider_label} request failed at {self.base_url}: {last_error}") from last_error
 
     def _post_json(self, payload: dict[str, Any]) -> str:
         body = json.dumps(payload).encode("utf-8")
@@ -365,3 +375,15 @@ class QwenClient(LLMClient):
         if len(compact) <= limit:
             return compact
         return compact[: limit - 3] + "..."
+
+    def _infer_provider_label(self, base_url: str) -> str:
+        lower = base_url.lower()
+        if "deepseek" in lower:
+            return "DeepSeek"
+        if "openrouter" in lower:
+            return "OpenRouter"
+        if "dashscope" in lower or "aliyun" in lower:
+            return "DashScope"
+        if "localhost" in lower or "127.0.0.1" in lower:
+            return "local OpenAI-compatible endpoint"
+        return "OpenAI-compatible endpoint"

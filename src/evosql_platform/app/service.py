@@ -248,6 +248,7 @@ class QueryService:
                 timeout_seconds=float(config.get("timeoutSeconds", 45)),
                 max_retries=int(config.get("maxRetries", 2)),
                 base_url=config.get("baseUrl"),
+                provider_label=str(config.get("displayName") or provider or "OpenAI-compatible endpoint"),
             )
             return client, f"{provider}:{config.get('displayName') or config_id}", True
         if mode == "qwen_openrouter":

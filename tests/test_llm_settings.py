@@ -1,6 +1,8 @@
 from evosql_platform.app.llm_settings import LLMSettingsStore
 from evosql_platform.app.service import QueryService
 from evosql_platform.clients.mock import DemoCampusLLMClient
+from evosql_platform.clients.qwen import QwenClient
+from evosql_platform.models import ContextState
 
 
 def test_llm_settings_store_persists_configs(tmp_path) -> None:
@@ -39,3 +41,31 @@ def test_query_service_resolves_configured_mock_client(tmp_path) -> None:
     assert isinstance(client, DemoCampusLLMClient)
     assert source_label == "mock"
     assert requires_api_key is False
+
+
+def test_openai_compatible_schema_linking_falls_back_to_heuristics() -> None:
+    class BusyDeepSeekClient(QwenClient):
+        def _request(self, *args, **kwargs) -> str:
+            raise RuntimeError("DeepSeek request failed at https://api.deepseek.com/chat/completions: HTTP 503")
+
+    client = BusyDeepSeekClient(
+        model="deepseek-chat",
+        api_key="sk-test",
+        base_url="https://api.deepseek.com/chat/completions",
+        provider_label="DeepSeek",
+    )
+    result = client.select_schema(
+        ContextState(
+            instruction="link",
+            question="统计 students 人数",
+            schema_subset={
+                "tables": {
+                    "students": {"columns": [{"name": "student_id", "type": "INTEGER"}]},
+                    "courses": {"columns": [{"name": "course_id", "type": "INTEGER"}]},
+                }
+            },
+        )
+    )
+    assert result["tables"] == ["students"]
+    assert "DeepSeek schema linking request failed" in result["reasoning"]
+    assert "OpenRouter" not in result["reasoning"]
