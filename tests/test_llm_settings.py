@@ -73,6 +73,15 @@ def test_llm_settings_store_updates_configs_and_preserves_secret(tmp_path) -> No
     assert private["apiKey"] == "sk-original-secret"
 
 
+def test_seeded_openrouter_qwen_can_be_deleted(tmp_path) -> None:
+    store = LLMSettingsStore(tmp_path / "settings.sqlite")
+    assert any(item["id"] == "openrouter-qwen" for item in store.list_configs())
+
+    store.delete_config("openrouter-qwen")
+
+    assert all(item["id"] != "openrouter-qwen" for item in store.list_configs())
+
+
 def test_query_service_resolves_configured_mock_client(tmp_path) -> None:
     service = QueryService()
     service.llm_settings_store = LLMSettingsStore(tmp_path / "settings.sqlite")

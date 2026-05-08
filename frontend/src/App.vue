@@ -422,7 +422,11 @@ async function removeLlm(id) {
     const res = await fetch(`/api/settings/llms/${id}`, { method: 'DELETE' })
     const data = await readJsonResponse(res, 'Delete LLM setting failed')
     if (!res.ok) throw new Error(data.detail || 'Delete LLM setting failed')
+    if (state.editingLlmId === id) {
+      resetLlmForm()
+    }
     await loadLlmConfigs()
+    showLlmNotice('LLM 配置已删除。')
   } catch (error) {
     state.error = error.message || String(error)
   }
