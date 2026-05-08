@@ -923,7 +923,7 @@ loadLlmConfigs()
           </div>
 
           <div class="stack">
-            <div class="composer">
+            <div class="composer workbench-grid">
               <section class="panel">
                 <header class="panel-head">
                   <div class="panel-title">发起问数</div>
@@ -969,16 +969,16 @@ loadLlmConfigs()
                       @keydown.ctrl.enter.prevent="runQuery()"
                     ></textarea>
                     <div class="composer-bar">
-                      <div class="composer-hints">
-                        <span><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> 运行</span>
-                        <span>建议字数 <= 80</span>
-                      </div>
-                      <button class="btn" type="button" @click="clearQuestion">清空</button>
                       <button class="btn primary" type="button" :disabled="state.loading || !state.question.trim()" @click="runQuery()">
                         <span v-if="state.loading" class="spinner"></span>
                         <IconSymbol v-else name="play" />
                         {{ state.loading ? '运行中...' : '运行查询' }}
                       </button>
+                      <button class="btn" type="button" @click="clearQuestion">清空</button>
+                      <div class="composer-hints">
+                        <span><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> 运行</span>
+                        <span>建议字数 <= 80</span>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -565,6 +565,10 @@ pre {
   gap: 16px;
 }
 
+.workbench-grid {
+  align-items: start;
+}
+
 .composer-meta {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -601,7 +605,7 @@ pre {
   font-size: 11px;
   color: var(--ink-3);
   font-family: var(--font-mono);
-  margin-right: auto;
+  margin-left: auto;
 }
 
 .kbd {
