@@ -153,6 +153,48 @@ class LLMSettingsStore:
             conn.commit()
         return self.get_config(config_id)
 
+    def update_config(self, config_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        row = self._normalize_payload(payload)
+        with self._lock, self._connect() as conn:
+            existing = conn.execute("SELECT api_key FROM llm_configs WHERE id = ?", (config_id,)).fetchone()
+            if existing is None:
+                raise KeyError(config_id)
+            api_key = row["api_key"] if row["api_key"] else existing["api_key"]
+            now = self._now()
+            conn.execute(
+                """
+                UPDATE llm_configs
+                SET display_name = ?,
+                    provider = ?,
+                    model = ?,
+                    base_url = ?,
+                    api_key = ?,
+                    temperature = ?,
+                    timeout_seconds = ?,
+                    max_retries = ?,
+                    scope = ?,
+                    notes = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    row["display_name"],
+                    row["provider"],
+                    row["model"],
+                    row["base_url"],
+                    api_key,
+                    row["temperature"],
+                    row["timeout_seconds"],
+                    row["max_retries"],
+                    row["scope"],
+                    row["notes"],
+                    now,
+                    config_id,
+                ),
+            )
+            conn.commit()
+        return self.get_config(config_id)
+
     def get_config(self, config_id: str) -> dict[str, Any]:
         with self._connect() as conn:
             row = conn.execute("SELECT * FROM llm_configs WHERE id = ?", (config_id,)).fetchone()

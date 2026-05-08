@@ -34,6 +34,45 @@ def test_llm_settings_store_persists_configs(tmp_path) -> None:
     assert any(item["id"] == created["id"] for item in configs)
 
 
+def test_llm_settings_store_updates_configs_and_preserves_secret(tmp_path) -> None:
+    store = LLMSettingsStore(tmp_path / "settings.sqlite")
+    created = store.create_config(
+        {
+            "display_name": "ChatGPT",
+            "provider": "openai-compatible",
+            "model": "gpt-test",
+            "base_url": "https://api.example.com",
+            "api_key": "sk-original-secret",
+            "temperature": 0.3,
+            "timeout_seconds": 30,
+            "max_retries": 1,
+            "scope": "campus",
+            "notes": "old",
+        }
+    )
+
+    updated = store.update_config(
+        created["id"],
+        {
+            "display_name": "ChatGPT Meteor",
+            "provider": "openai-compatible",
+            "model": "gpt-test-new",
+            "base_url": "https://api.meteor041.com/v1/chat/completions",
+            "api_key": "",
+            "temperature": 0.4,
+            "timeout_seconds": 45,
+            "max_retries": 2,
+            "scope": "campus",
+            "notes": "updated",
+        },
+    )
+
+    private = store.get_private_config(created["id"])
+    assert updated["displayName"] == "ChatGPT Meteor"
+    assert updated["baseUrl"] == "https://api.meteor041.com/v1/chat/completions"
+    assert private["apiKey"] == "sk-original-secret"
+
+
 def test_query_service_resolves_configured_mock_client(tmp_path) -> None:
     service = QueryService()
     service.llm_settings_store = LLMSettingsStore(tmp_path / "settings.sqlite")

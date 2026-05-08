@@ -181,6 +181,31 @@ def create_llm_config(payload: LLMConfigRequest) -> dict:
     return {"item": item}
 
 
+@app.put("/api/settings/llms/{config_id}")
+def update_llm_config(config_id: str, payload: LLMConfigRequest) -> dict:
+    try:
+        item = service.llm_settings_store.update_config(
+            config_id,
+            {
+                "display_name": payload.display_name,
+                "provider": payload.provider,
+                "model": payload.model,
+                "base_url": payload.base_url,
+                "api_key": payload.api_key,
+                "temperature": payload.temperature,
+                "timeout_seconds": payload.timeout_seconds,
+                "max_retries": payload.max_retries,
+                "scope": payload.scope,
+                "notes": payload.notes,
+            },
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="LLM config not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"item": item}
+
+
 @app.post("/api/settings/llms/{config_id}/default")
 def set_default_llm(config_id: str) -> dict:
     try:

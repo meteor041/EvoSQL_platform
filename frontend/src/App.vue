@@ -97,6 +97,7 @@ const state = reactive({
   llmConfigs: [
   ],
   llmForm: emptyLlmForm(),
+  editingLlmId: '',
   llmFormError: '',
   llmSavedNotice: ''
 })
@@ -316,6 +317,7 @@ function applyProviderDefaults() {
 
 function resetLlmForm() {
   state.llmForm = emptyLlmForm()
+  state.editingLlmId = ''
   state.llmFormError = ''
 }
 
@@ -340,9 +342,10 @@ async function addLlmConfig() {
     state.llmFormError = 'Base URL 不能为空。'
     return
   }
+  const editing = Boolean(state.editingLlmId)
   try {
-    const res = await fetch('/api/settings/llms', {
-      method: 'POST',
+    const res = await fetch(editing ? `/api/settings/llms/${state.editingLlmId}` : '/api/settings/llms', {
+      method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         display_name: displayName,
@@ -357,14 +360,32 @@ async function addLlmConfig() {
         notes: state.llmForm.notes.trim()
       })
     })
-    const data = await readJsonResponse(res, 'Create LLM setting failed')
-    if (!res.ok) throw new Error(data.detail || 'Create LLM setting failed')
+    const data = await readJsonResponse(res, editing ? 'Update LLM setting failed' : 'Create LLM setting failed')
+    if (!res.ok) throw new Error(data.detail || (editing ? 'Update LLM setting failed' : 'Create LLM setting failed'))
     resetLlmForm()
     await loadLlmConfigs()
-    showLlmNotice('LLM 配置已新增。')
+    showLlmNotice(editing ? 'LLM 配置已更新。' : 'LLM 配置已新增。')
   } catch (error) {
     state.llmFormError = error.message || String(error)
   }
+}
+
+function editLlmConfig(item) {
+  state.editingLlmId = item.id
+  state.llmFormError = ''
+  state.llmForm = {
+    displayName: item.displayName,
+    provider: item.provider,
+    model: item.model,
+    baseUrl: item.baseUrl,
+    apiKey: '',
+    temperature: item.temperature,
+    timeoutSeconds: item.timeoutSeconds,
+    maxRetries: item.maxRetries,
+    scope: item.scope,
+    notes: item.notes || ''
+  }
+  state.activeView = 'settings'
 }
 
 async function setDefaultLlm(id) {
@@ -1648,8 +1669,8 @@ loadLlmConfigs()
             <div class="settings-grid">
               <section class="panel">
                 <header class="panel-head">
-                  <div class="panel-title">新增 LLM</div>
-                  <div class="panel-sub">provider / model / secret</div>
+                  <div class="panel-title">{{ state.editingLlmId ? '编辑 LLM' : '新增 LLM' }}</div>
+                  <div class="panel-sub">{{ state.editingLlmId ? '更新 provider / model / endpoint' : 'provider / model / secret' }}</div>
                   <div class="panel-actions">
                     <span class="chip info"><span class="dot"></span>admin only</span>
                   </div>
@@ -1684,7 +1705,7 @@ loadLlmConfigs()
                     </div>
                     <div class="meta-field span-2">
                       <label class="field-label">API Key</label>
-                      <input v-model="state.llmForm.apiKey" class="input secret-input" type="password" placeholder="保存后仅显示遮罩" />
+                      <input v-model="state.llmForm.apiKey" class="input secret-input" type="password" :placeholder="state.editingLlmId ? '留空则保留原 API Key' : '保存后仅显示遮罩'" />
                     </div>
                     <div class="meta-field">
                       <label class="field-label">Temperature</label>
@@ -1704,8 +1725,10 @@ loadLlmConfigs()
                     </div>
                   </div>
                   <div class="settings-actions">
-                    <button class="btn" type="button" @click="resetLlmForm">清空</button>
-                    <button class="btn primary" type="button" @click="addLlmConfig"><IconSymbol name="plus" />新增模型</button>
+                    <button class="btn" type="button" @click="resetLlmForm">{{ state.editingLlmId ? '取消编辑' : '清空' }}</button>
+                    <button class="btn primary" type="button" @click="addLlmConfig">
+                      <IconSymbol :name="state.editingLlmId ? 'check' : 'plus'" />{{ state.editingLlmId ? '保存修改' : '新增模型' }}
+                    </button>
                   </div>
                 </div>
               </section>
@@ -1783,6 +1806,9 @@ loadLlmConfigs()
                       </button>
                       <button class="btn sm" type="button" @click="toggleLlm(item.id)">
                         <IconSymbol :name="item.enabled ? 'x' : 'check'" :size="13" />{{ item.enabled ? '停用' : '启用' }}
+                      </button>
+                      <button class="btn sm" type="button" @click="editLlmConfig(item)">
+                        <IconSymbol name="cog" :size="13" />编辑
                       </button>
                       <button class="btn sm danger" type="button" @click="removeLlm(item.id)">
                         <IconSymbol name="trash" :size="13" />删除
