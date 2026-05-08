@@ -95,6 +95,7 @@ const state = reactive({
   error: '',
   copiedSql: false,
   expandedCandidates: {},
+  expandedAuditLogs: {},
   llmConfigs: [
   ],
   llmForm: emptyLlmForm(),
@@ -580,6 +581,19 @@ function candidateKey(candidate, index, prefix) {
 
 function toggleCandidate(key) {
   state.expandedCandidates[key] = !state.expandedCandidates[key]
+}
+
+function auditKey(item, index) {
+  return `${index}-${item.timestamp || 'time'}-${item.task_id || 'task'}`
+}
+
+function toggleAuditLog(key) {
+  state.expandedAuditLogs[key] = !state.expandedAuditLogs[key]
+}
+
+function formatAuditJson(value) {
+  if (!value || (Array.isArray(value) && !value.length)) return 'n/a'
+  return JSON.stringify(value, null, 2)
 }
 
 function scoreEntries(candidate) {
@@ -1468,22 +1482,53 @@ loadLlmConfigs()
                     <div class="empty-title">没有匹配的审计记录</div>
                     <div class="empty-sub">尝试调整筛选条件或刷新日志</div>
                   </div>
-                  <div v-for="item in state.auditLogs" :key="item.timestamp + item.task_id" class="audit-item">
-                    <div class="audit-time">{{ formatAuditTime(item.timestamp) }}</div>
-                    <div class="audit-q" :title="item.question">
-                      {{ item.question }}
-                      <span class="meta">· candidates {{ item.candidate_count || 0 }}</span>
+                  <article
+                    v-for="(item, index) in state.auditLogs"
+                    :key="item.timestamp + item.task_id"
+                    class="audit-entry"
+                  >
+                    <div class="audit-item">
+                      <div class="audit-time">{{ formatAuditTime(item.timestamp) }}</div>
+                      <div class="audit-q" :title="item.question">
+                        {{ item.question }}
+                        <span class="meta">· candidates {{ item.candidate_count || 0 }}</span>
+                      </div>
+                      <div class="audit-user audit-user-cell">
+                        <div class="avatar av">管</div>
+                        <span class="name">{{ item.user_id || 'demo-user' }}</span>
+                      </div>
+                      <div class="audit-domain">{{ item.domain }}</div>
+                      <div>
+                        <span class="chip" :class="resultStatusClass(item.status)"><span class="dot"></span>{{ item.status }}</span>
+                      </div>
+                      <div class="audit-source">{{ item.result_source || 'n/a' }}</div>
+                      <button class="btn sm audit-open" type="button" @click="toggleAuditLog(auditKey(item, index))">
+                        {{ state.expandedAuditLogs[auditKey(item, index)] ? '收起' : '打开' }}
+                      </button>
                     </div>
-                    <div class="audit-user audit-user-cell">
-                      <div class="avatar av">管</div>
-                      <span class="name">{{ item.user_id || 'demo-user' }}</span>
+                    <div v-if="state.expandedAuditLogs[auditKey(item, index)]" class="audit-detail">
+                      <div class="audit-detail-grid">
+                        <div><span>task</span>{{ item.task_id || 'n/a' }}</div>
+                        <div><span>session</span>{{ item.session_id || 'n/a' }}</div>
+                        <div><span>mode</span>{{ item.llm_mode || 'n/a' }}</div>
+                        <div><span>source</span>{{ item.result_source || 'n/a' }}</div>
+                        <div><span>fallback</span>{{ item.fallback_reason || 'n/a' }}</div>
+                        <div><span>safety</span>{{ (item.safety_checks || []).length || 0 }} checks</div>
+                      </div>
+                      <div class="audit-detail-block">
+                        <div class="detail-label">final_sql</div>
+                        <pre>{{ item.final_sql || item.attempted_sql || 'n/a' }}</pre>
+                      </div>
+                      <div class="audit-detail-block">
+                        <div class="detail-label">candidate_records</div>
+                        <pre>{{ formatAuditJson(item.candidate_records || item.attempted_candidate_records) }}</pre>
+                      </div>
+                      <div class="audit-detail-block">
+                        <div class="detail-label">safety_checks</div>
+                        <pre>{{ formatAuditJson(item.safety_checks) }}</pre>
+                      </div>
                     </div>
-                    <div class="audit-domain">{{ item.domain }}</div>
-                    <div>
-                      <span class="chip" :class="resultStatusClass(item.status)"><span class="dot"></span>{{ item.status }}</span>
-                    </div>
-                    <div class="audit-source">{{ item.result_source || 'n/a' }}</div>
-                  </div>
+                  </article>
                 </div>
                 <div class="audit-pager">
                   <div class="info">共 {{ state.auditTotal }} 条 · 每页 {{ state.auditLimit }} 条</div>
@@ -1652,14 +1697,45 @@ loadLlmConfigs()
           <section class="panel">
             <div class="panel-body flush">
               <div class="audit-list">
-                <div v-for="item in state.auditLogs" :key="item.timestamp + item.task_id" class="audit-item">
-                  <div class="audit-time">{{ formatAuditTime(item.timestamp) }}</div>
-                  <div class="audit-q">{{ item.question }}</div>
-                  <div class="audit-user audit-user-cell"><div class="avatar av">管</div><span class="name">{{ item.user_id || 'demo-user' }}</span></div>
-                  <div class="audit-domain">{{ item.domain }}</div>
-                  <div><span class="chip" :class="resultStatusClass(item.status)"><span class="dot"></span>{{ item.status }}</span></div>
-                  <div class="audit-source">{{ item.result_source || 'n/a' }}</div>
-                </div>
+                <article
+                  v-for="(item, index) in state.auditLogs"
+                  :key="item.timestamp + item.task_id"
+                  class="audit-entry"
+                >
+                  <div class="audit-item">
+                    <div class="audit-time">{{ formatAuditTime(item.timestamp) }}</div>
+                    <div class="audit-q">{{ item.question }}</div>
+                    <div class="audit-user audit-user-cell"><div class="avatar av">管</div><span class="name">{{ item.user_id || 'demo-user' }}</span></div>
+                    <div class="audit-domain">{{ item.domain }}</div>
+                    <div><span class="chip" :class="resultStatusClass(item.status)"><span class="dot"></span>{{ item.status }}</span></div>
+                    <div class="audit-source">{{ item.result_source || 'n/a' }}</div>
+                    <button class="btn sm audit-open" type="button" @click="toggleAuditLog(auditKey(item, index))">
+                      {{ state.expandedAuditLogs[auditKey(item, index)] ? '收起' : '打开' }}
+                    </button>
+                  </div>
+                  <div v-if="state.expandedAuditLogs[auditKey(item, index)]" class="audit-detail">
+                    <div class="audit-detail-grid">
+                      <div><span>task</span>{{ item.task_id || 'n/a' }}</div>
+                      <div><span>session</span>{{ item.session_id || 'n/a' }}</div>
+                      <div><span>mode</span>{{ item.llm_mode || 'n/a' }}</div>
+                      <div><span>source</span>{{ item.result_source || 'n/a' }}</div>
+                      <div><span>fallback</span>{{ item.fallback_reason || 'n/a' }}</div>
+                      <div><span>safety</span>{{ (item.safety_checks || []).length || 0 }} checks</div>
+                    </div>
+                    <div class="audit-detail-block">
+                      <div class="detail-label">final_sql</div>
+                      <pre>{{ item.final_sql || item.attempted_sql || 'n/a' }}</pre>
+                    </div>
+                    <div class="audit-detail-block">
+                      <div class="detail-label">candidate_records</div>
+                      <pre>{{ formatAuditJson(item.candidate_records || item.attempted_candidate_records) }}</pre>
+                    </div>
+                    <div class="audit-detail-block">
+                      <div class="detail-label">safety_checks</div>
+                      <pre>{{ formatAuditJson(item.safety_checks) }}</pre>
+                    </div>
+                  </div>
+                </article>
               </div>
             </div>
           </section>
