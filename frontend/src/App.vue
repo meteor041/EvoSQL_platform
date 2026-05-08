@@ -212,9 +212,8 @@ const llmKpis = computed(() => [
   { label: '作用域', value: String(new Set(state.llmConfigs.map((item) => item.scope)).size), note: 'domains' }
 ])
 const llmModeOptions = computed(() => [
-  { value: 'auto', label: 'auto', note: '默认路由' },
-  { value: 'qwen', label: 'qwen', note: '环境变量' },
-  { value: 'mock', label: 'mock', note: '本地演示' },
+  { value: 'auto', label: 'auto', note: '使用当前默认模型' },
+  { value: 'mock', label: 'mock', note: '仅使用本地演示' },
   ...state.llmConfigs
     .filter((item) => item.enabled)
     .map((item) => ({
@@ -949,7 +948,7 @@ loadLlmConfigs()
                       </select>
                     </div>
                     <div class="meta-field">
-                      <label class="field-label">LLM Mode</label>
+                      <label class="field-label">模型路由</label>
                       <select v-model="state.llmMode" class="select">
                         <option v-for="item in llmModeOptions" :key="item.value" :value="item.value">
                           {{ item.label }}
@@ -1786,9 +1785,9 @@ loadLlmConfigs()
                     <div class="source-line">{{ defaultLlm?.apiKeyMasked || 'n/a' }}</div>
                   </div>
                   <div class="route-policy">
-                    <div class="route-step"><span>1</span><strong>auto</strong><em>优先默认启用模型</em></div>
-                    <div class="route-step"><span>2</span><strong>qwen</strong><em>强制真实模型</em></div>
-                    <div class="route-step"><span>3</span><strong>mock</strong><em>本地演示兜底</em></div>
+                    <div class="route-step"><span>1</span><strong>auto</strong><em>使用当前默认模型</em></div>
+                    <div class="route-step"><span>2</span><strong>指定模型</strong><em>直接调用已启用配置</em></div>
+                    <div class="route-step"><span>3</span><strong>mock</strong><em>仅使用本地演示</em></div>
                   </div>
                 </div>
               </section>
