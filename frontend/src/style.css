@@ -1567,9 +1567,9 @@ pre {
 
 .llm-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.4fr) 90px minmax(180px, 0.9fr) minmax(120px, 0.65fr) auto;
+  grid-template-columns: minmax(220px, 1.25fr) 70px minmax(160px, 0.78fr) minmax(108px, 0.55fr) max-content;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
