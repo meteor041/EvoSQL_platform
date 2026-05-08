@@ -1193,26 +1193,28 @@ loadLlmConfigs()
                     class="cand"
                     :class="candidateStatusClass(candidate.status)"
                   >
-                    <div class="cand-head">
-                      <div class="cand-rank">#{{ candidate.rank || index + 1 }} · iter {{ candidate.iteration || '-' }}</div>
-                      <div class="cand-title">{{ candidateStatusLabel(candidate.status) }}</div>
-                      <div class="cand-meta">
-                        <span class="cand-score">score {{ candidate.score ?? 'n/a' }}</span>
-                        <span class="chip" :class="candidateStatusClass(candidate.status)"><span class="dot"></span>{{ candidateStatusLabel(candidate.status) }}</span>
-                      </div>
-                    </div>
                     <div class="cand-body">
-                      <pre class="cand-preview" :class="{ expanded: state.expandedCandidates[candidateKey(candidate, index, 'attempt')] }">{{ candidate.sql }}</pre>
-                      <div class="cand-kv">tables={{ (candidate.referenced_tables || []).join(', ') || 'n/a' }}</div>
-                      <div class="cand-kv">columns={{ (candidate.referenced_columns || []).join(', ') || 'n/a' }}</div>
-                      <div v-if="scoreEntries(candidate).length" class="score-grid">
-                        <span v-for="score in scoreEntries(candidate)" :key="score.key" class="score-pill">
-                          {{ score.label }}={{ score.value }}
-                        </span>
+                      <pre class="cand-preview">{{ candidate.sql }}</pre>
+                      <div v-if="state.expandedCandidates[candidateKey(candidate, index, 'attempt')]" class="cand-details">
+                        <div class="cand-head">
+                          <div class="cand-rank">#{{ candidate.rank || index + 1 }} · iter {{ candidate.iteration || '-' }}</div>
+                          <div class="cand-title">{{ candidateStatusLabel(candidate.status) }}</div>
+                          <div class="cand-meta">
+                            <span class="cand-score">score {{ candidate.score ?? 'n/a' }}</span>
+                            <span class="chip" :class="candidateStatusClass(candidate.status)"><span class="dot"></span>{{ candidateStatusLabel(candidate.status) }}</span>
+                          </div>
+                        </div>
+                        <div class="cand-kv">tables={{ (candidate.referenced_tables || []).join(', ') || 'n/a' }}</div>
+                        <div class="cand-kv">columns={{ (candidate.referenced_columns || []).join(', ') || 'n/a' }}</div>
+                        <div v-if="scoreEntries(candidate).length" class="score-grid">
+                          <span v-for="score in scoreEntries(candidate)" :key="score.key" class="score-pill">
+                            {{ score.label }}={{ score.value }}
+                          </span>
+                        </div>
+                        <div v-if="candidate.error" class="cand-error">{{ candidate.error }}</div>
                       </div>
-                      <div v-if="candidate.error" class="cand-error">{{ candidate.error }}</div>
                       <button class="btn sm cand-toggle" type="button" @click="toggleCandidate(candidateKey(candidate, index, 'attempt'))">
-                        {{ state.expandedCandidates[candidateKey(candidate, index, 'attempt')] ? '收起 SQL' : '展开 SQL' }}
+                        {{ state.expandedCandidates[candidateKey(candidate, index, 'attempt')] ? '收起详情' : '展开详情' }}
                       </button>
                     </div>
                   </article>
@@ -1236,41 +1238,43 @@ loadLlmConfigs()
                     class="cand"
                     :class="candidateStatusClass(candidate.status)"
                   >
-                    <div class="cand-head">
-                      <div class="cand-rank">#{{ candidate.rank || index + 1 }} · iter {{ candidate.iteration || '-' }}</div>
-                      <div class="cand-title">{{ candidate.selected ? '最终选用候选' : candidateStatusLabel(candidate.status) }}</div>
-                      <div class="cand-meta">
-                        <span class="cand-score">score {{ candidate.score ?? 'n/a' }}</span>
-                        <span class="chip" :class="candidateStatusClass(candidate.status)"><span class="dot"></span>{{ candidateStatusLabel(candidate.status) }}</span>
-                      </div>
-                    </div>
                     <div class="cand-body">
-                      <pre class="cand-preview" :class="{ expanded: state.expandedCandidates[candidateKey(candidate, index, 'active')] }">{{ candidate.sql }}</pre>
-                      <div class="cand-kv">tables={{ (candidate.referenced_tables || []).join(', ') || 'n/a' }}</div>
-                      <div class="cand-kv">columns={{ (candidate.referenced_columns || []).join(', ') || 'n/a' }}</div>
-                      <div v-if="candidate.execution_signature" class="cand-kv">signature={{ candidate.execution_signature }}</div>
-                      <div v-if="scoreEntries(candidate).length" class="score-grid">
-                        <span v-for="score in scoreEntries(candidate)" :key="score.key" class="score-pill">
-                          {{ score.label }}={{ score.value }}
-                        </span>
-                      </div>
-                      <div v-if="candidate.error" class="cand-error">{{ candidate.error }}</div>
-                      <div v-if="candidate.execution_preview?.length" class="dtable-wrap candidate-preview-table">
-                        <table class="dtable compact-table">
-                          <thead>
-                            <tr>
-                              <th v-for="column in Object.keys(candidate.execution_preview[0])" :key="column">{{ column }}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr v-for="(row, rowIndex) in candidate.execution_preview" :key="rowIndex">
-                              <td v-for="column in Object.keys(candidate.execution_preview[0])" :key="column">{{ row[column] }}</td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <pre class="cand-preview">{{ candidate.sql }}</pre>
+                      <div v-if="state.expandedCandidates[candidateKey(candidate, index, 'active')]" class="cand-details">
+                        <div class="cand-head">
+                          <div class="cand-rank">#{{ candidate.rank || index + 1 }} · iter {{ candidate.iteration || '-' }}</div>
+                          <div class="cand-title">{{ candidate.selected ? '最终选用候选' : candidateStatusLabel(candidate.status) }}</div>
+                          <div class="cand-meta">
+                            <span class="cand-score">score {{ candidate.score ?? 'n/a' }}</span>
+                            <span class="chip" :class="candidateStatusClass(candidate.status)"><span class="dot"></span>{{ candidateStatusLabel(candidate.status) }}</span>
+                          </div>
+                        </div>
+                        <div class="cand-kv">tables={{ (candidate.referenced_tables || []).join(', ') || 'n/a' }}</div>
+                        <div class="cand-kv">columns={{ (candidate.referenced_columns || []).join(', ') || 'n/a' }}</div>
+                        <div v-if="candidate.execution_signature" class="cand-kv">signature={{ candidate.execution_signature }}</div>
+                        <div v-if="scoreEntries(candidate).length" class="score-grid">
+                          <span v-for="score in scoreEntries(candidate)" :key="score.key" class="score-pill">
+                            {{ score.label }}={{ score.value }}
+                          </span>
+                        </div>
+                        <div v-if="candidate.error" class="cand-error">{{ candidate.error }}</div>
+                        <div v-if="candidate.execution_preview?.length" class="dtable-wrap candidate-preview-table">
+                          <table class="dtable compact-table">
+                            <thead>
+                              <tr>
+                                <th v-for="column in Object.keys(candidate.execution_preview[0])" :key="column">{{ column }}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="(row, rowIndex) in candidate.execution_preview" :key="rowIndex">
+                                <td v-for="column in Object.keys(candidate.execution_preview[0])" :key="column">{{ row[column] }}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                       <button class="btn sm cand-toggle" type="button" @click="toggleCandidate(candidateKey(candidate, index, 'active'))">
-                        {{ state.expandedCandidates[candidateKey(candidate, index, 'active')] ? '收起 SQL' : '展开 SQL' }}
+                        {{ state.expandedCandidates[candidateKey(candidate, index, 'active')] ? '收起详情' : '展开详情' }}
                       </button>
                     </div>
                   </article>

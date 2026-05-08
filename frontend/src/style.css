@@ -991,9 +991,11 @@ pre {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 10px 12px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-radius: 4px 4px 0 0;
 }
 
 .cand-rank {
@@ -1045,13 +1047,12 @@ pre {
   border-radius: 4px;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 80px;
-  overflow: hidden;
   margin: 0;
 }
 
-.cand-preview.expanded {
-  max-height: none;
+.cand-details {
+  margin-top: 10px;
+  padding-top: 2px;
 }
 
 .cand-kv {
