@@ -902,11 +902,6 @@ loadLlmConfigs()
           <span>安全策略</span>
         </button>
 
-        <div class="sidebar-footer">
-          <div class="row"><span>Frontend</span><span class="v">Vite + Vue</span></div>
-          <div class="row"><span>SQL Guard</span><span class="v">SELECT only</span></div>
-          <div class="row"><span>Workspace</span><span class="v">Campus</span></div>
-        </div>
       </nav>
     </aside>
 

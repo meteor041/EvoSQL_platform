@@ -305,27 +305,6 @@ pre {
   color: var(--blue-ink);
 }
 
-.sidebar-footer {
-  margin-top: auto;
-  padding: 12px;
-  border-top: 1px solid var(--border);
-  font-size: 11px;
-  color: var(--ink-3);
-}
-
-.sidebar-footer .row {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 3px 0;
-}
-
-.sidebar-footer .v {
-  color: var(--ink-2);
-  font-family: var(--font-mono);
-  white-space: nowrap;
-}
-
 .page {
   padding: 20px 24px 40px;
   max-width: 1480px;
