@@ -1701,7 +1701,7 @@ loadLlmConfigs()
                     </div>
                     <div class="meta-field span-2">
                       <label class="field-label">Base URL</label>
-                      <input v-model="state.llmForm.baseUrl" class="input" placeholder="https://.../chat/completions" />
+                      <input v-model="state.llmForm.baseUrl" class="input" placeholder="https://api.example.com" />
                     </div>
                     <div class="meta-field span-2">
                       <label class="field-label">API Key</label>

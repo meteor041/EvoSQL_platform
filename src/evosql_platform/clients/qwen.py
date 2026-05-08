@@ -29,6 +29,7 @@ class QwenClient(LLMClient):
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.base_url = base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
+        self.request_url = self._chat_completions_url(self.base_url)
         self.provider_label = provider_label or self._infer_provider_label(self.base_url)
         self.referer = os.getenv("OPENROUTER_REFERER", "http://localhost")
         self.title = os.getenv("OPENROUTER_TITLE", "EvoSQLPlatform")
@@ -142,12 +143,12 @@ class QwenClient(LLMClient):
                 if attempt >= self.max_retries:
                     break
                 time.sleep(1.5 * (attempt + 1))
-        raise RuntimeError(f"{self.provider_label} request failed at {self.base_url}: {last_error}") from last_error
+        raise RuntimeError(f"{self.provider_label} request failed at {self.request_url}: {last_error}") from last_error
 
     def _post_json(self, payload: dict[str, Any]) -> str:
         body = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
-            self.base_url,
+            self.request_url,
             data=body,
             headers={
                 "Authorization": f"Bearer {self.api_key}",
@@ -387,3 +388,12 @@ class QwenClient(LLMClient):
         if "localhost" in lower or "127.0.0.1" in lower:
             return "local OpenAI-compatible endpoint"
         return "OpenAI-compatible endpoint"
+
+    def _chat_completions_url(self, base_url: str) -> str:
+        normalized = base_url.strip().rstrip("/")
+        if not normalized:
+            return normalized
+        lower = normalized.lower()
+        if lower.endswith("/chat/completions") or lower.endswith("/completions"):
+            return normalized
+        return f"{normalized}/v1/chat/completions"

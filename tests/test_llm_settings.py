@@ -57,7 +57,7 @@ def test_llm_settings_store_updates_configs_and_preserves_secret(tmp_path) -> No
             "display_name": "ChatGPT Meteor",
             "provider": "openai-compatible",
             "model": "gpt-test-new",
-            "base_url": "https://api.meteor041.com/v1/chat/completions",
+            "base_url": "https://api.meteor041.com",
             "api_key": "",
             "temperature": 0.4,
             "timeout_seconds": 45,
@@ -69,7 +69,7 @@ def test_llm_settings_store_updates_configs_and_preserves_secret(tmp_path) -> No
 
     private = store.get_private_config(created["id"])
     assert updated["displayName"] == "ChatGPT Meteor"
-    assert updated["baseUrl"] == "https://api.meteor041.com/v1/chat/completions"
+    assert updated["baseUrl"] == "https://api.meteor041.com"
     assert private["apiKey"] == "sk-original-secret"
 
 
@@ -108,3 +108,22 @@ def test_openai_compatible_schema_linking_falls_back_to_heuristics() -> None:
     assert result["tables"] == ["students"]
     assert "DeepSeek schema linking request failed" in result["reasoning"]
     assert "OpenRouter" not in result["reasoning"]
+
+
+def test_openai_compatible_base_url_expands_to_chat_completions() -> None:
+    root_client = QwenClient(
+        model="gpt-test",
+        api_key="sk-test",
+        base_url="https://api.meteor041.com",
+        provider_label="ChatGPT",
+    )
+    full_client = QwenClient(
+        model="gpt-test",
+        api_key="sk-test",
+        base_url="https://api.meteor041.com/v1/chat/completions",
+        provider_label="ChatGPT",
+    )
+
+    assert root_client.base_url == "https://api.meteor041.com"
+    assert root_client.request_url == "https://api.meteor041.com/v1/chat/completions"
+    assert full_client.request_url == "https://api.meteor041.com/v1/chat/completions"
