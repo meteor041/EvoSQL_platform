@@ -565,8 +565,14 @@ pre {
   gap: 16px;
 }
 
-.workbench-grid {
-  align-items: start;
+.composer-panel,
+.composer-panel .panel-body.flush {
+  display: flex;
+  flex-direction: column;
+}
+
+.composer-panel .panel-body.flush {
+  flex: 1;
 }
 
 .composer-meta {
@@ -583,9 +589,13 @@ pre {
 
 .composer-input {
   padding: 16px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
 .composer-input .textarea {
+  flex: 1;
   font-size: 14px;
   min-height: 88px;
   border-color: var(--border);

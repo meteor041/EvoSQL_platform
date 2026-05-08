@@ -923,8 +923,8 @@ loadLlmConfigs()
           </div>
 
           <div class="stack">
-            <div class="composer workbench-grid">
-              <section class="panel">
+            <div class="composer">
+              <section class="panel composer-panel">
                 <header class="panel-head">
                   <div class="panel-title">发起问数</div>
                   <div class="panel-sub">POST /api/query</div>
