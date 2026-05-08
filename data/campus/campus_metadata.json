@@ -1,0 +1,51 @@
+{
+  "domains": {
+    "teaching": [
+      "colleges",
+      "majors",
+      "classes",
+      "students",
+      "courses",
+      "course_offerings",
+      "enrollments"
+    ],
+    "student_affairs": [
+      "students",
+      "dormitories",
+      "repair_orders",
+      "awards_penalties"
+    ],
+    "research": [
+      "teachers",
+      "projects",
+      "papers",
+      "colleges"
+    ]
+  },
+  "business_terms": {
+    "挂科率": "挂科率 = 未通过人数 / 选课人数，未通过定义为 passed = 0",
+    "一区论文": "一区论文对应 papers.zone = '一区'",
+    "通识选修": "通识选修对应 courses.course_type = '通识选修'",
+    "国家级项目": "国家级项目对应 projects.project_level = '国家级'",
+    "在读学生": "在读学生对应 students.status = '在读'",
+    "本学期": "本学期默认对应 course_offerings.term = '2026春'",
+    "本月": "本月默认对应 2026-05，即日期字段在 '2026-05-01' 到 '2026-06-01' 之间"
+  },
+  "synonyms": {
+    "学院": [
+      "college",
+      "院系"
+    ],
+    "专业": [
+      "major"
+    ],
+    "宿舍报修": [
+      "维修",
+      "报修工单"
+    ],
+    "科研经费": [
+      "项目经费",
+      "funding"
+    ]
+  }
+}

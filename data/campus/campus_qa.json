@@ -1,0 +1,569 @@
+[
+  {
+    "question": "各专业平均成绩排名",
+    "aliases": [
+      "按专业统计平均分",
+      "专业平均分排名"
+    ],
+    "sql": "SELECT m.major_name, ROUND(AVG(e.score), 2) AS avg_score FROM enrollments e JOIN students s ON e.student_id = s.student_id JOIN majors m ON s.major_id = m.major_id GROUP BY m.major_name ORDER BY avg_score DESC"
+  },
+  {
+    "question": "本月科研项目经费趋势",
+    "aliases": [
+      "本月项目经费趋势",
+      "本月科研经费走势"
+    ],
+    "sql": "SELECT approved_date, ROUND(SUM(funding), 2) AS daily_funding FROM projects WHERE approved_date >= '2026-05-01' AND approved_date < '2026-06-01' GROUP BY approved_date ORDER BY approved_date"
+  },
+  {
+    "question": "近一年课程挂科率分布",
+    "aliases": [
+      "课程挂科率分布",
+      "近一年各课程挂科率"
+    ],
+    "sql": "SELECT c.course_name, ROUND(AVG(CASE WHEN e.passed = 0 THEN 1.0 ELSE 0 END), 3) AS fail_rate FROM enrollments e JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses c ON o.course_id = c.course_id WHERE o.term IN ('2025秋', '2026春') GROUP BY c.course_name ORDER BY fail_rate DESC"
+  },
+  {
+    "question": "论文数量最高的教师 Top 5",
+    "aliases": [
+      "论文数量最高的教师",
+      "教师论文数量前五"
+    ],
+    "sql": "SELECT t.teacher_name, COUNT(p.paper_id) AS paper_count FROM teachers t LEFT JOIN papers p ON t.teacher_id = p.teacher_id GROUP BY t.teacher_name ORDER BY paper_count DESC LIMIT 5"
+  },
+  {
+    "question": "本学期选课人数最多的课程",
+    "aliases": [
+      "本学期热门课程",
+      "本学期选课人数 Top 课程"
+    ],
+    "sql": "SELECT c.course_name, COUNT(e.enrollment_id) AS enrollment_count FROM enrollments e JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses c ON o.course_id = c.course_id WHERE o.term = '2026春' GROUP BY c.course_name ORDER BY enrollment_count DESC LIMIT 5"
+  },
+  {
+    "question": "各学院师生比对比",
+    "aliases": [
+      "各学院师生比",
+      "学院师生比"
+    ],
+    "sql": "SELECT c.college_name, COUNT(DISTINCT s.student_id) AS student_count, COUNT(DISTINCT t.teacher_id) AS teacher_count, ROUND(COUNT(DISTINCT s.student_id) * 1.0 / NULLIF(COUNT(DISTINCT t.teacher_id), 0), 2) AS students_per_teacher FROM colleges c LEFT JOIN students s ON c.college_id = s.college_id AND s.status = '在读' LEFT JOIN teachers t ON c.college_id = t.college_id GROUP BY c.college_name ORDER BY students_per_teacher DESC"
+  },
+  {
+    "question": "各学院科研经费排名",
+    "aliases": [
+      "各学院科研经费",
+      "学院项目经费排名"
+    ],
+    "sql": "SELECT c.college_name, ROUND(SUM(p.funding), 2) AS total_funding FROM projects p JOIN colleges c ON p.college_id = c.college_id GROUP BY c.college_name ORDER BY total_funding DESC"
+  },
+  {
+    "question": "近三年一区论文趋势",
+    "aliases": [
+      "一区论文近三年趋势",
+      "近三年高水平论文趋势"
+    ],
+    "sql": "SELECT publish_year, COUNT(*) AS paper_count FROM papers WHERE zone = '一区' AND publish_year >= 2024 GROUP BY publish_year ORDER BY publish_year"
+  },
+  {
+    "question": "各校区宿舍报修趋势",
+    "aliases": [
+      "宿舍报修趋势",
+      "各校区报修趋势"
+    ],
+    "sql": "SELECT d.campus_name, substr(r.report_date, 1, 7) AS month, COUNT(*) AS repair_count FROM repair_orders r JOIN dormitories d ON r.dorm_id = d.dorm_id GROUP BY d.campus_name, substr(r.report_date, 1, 7) ORDER BY month, repair_count DESC"
+  },
+  {
+    "question": "各学院奖励惩罚记录对比",
+    "aliases": [
+      "学院奖惩对比",
+      "各学院奖惩记录"
+    ],
+    "sql": "SELECT c.college_name, SUM(CASE WHEN ap.record_type = '奖励' THEN 1 ELSE 0 END) AS reward_count, SUM(CASE WHEN ap.record_type = '惩罚' THEN 1 ELSE 0 END) AS penalty_count FROM awards_penalties ap JOIN students s ON ap.student_id = s.student_id JOIN colleges c ON s.college_id = c.college_id GROUP BY c.college_name ORDER BY reward_count DESC"
+  },
+  {
+    "question": "统计各学院当前学生人数",
+    "aliases": [
+      "各学院在读学生人数",
+      "按学院统计当前学生数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS student_count FROM students s JOIN colleges c ON s.college_id = c.college_id WHERE s.status = '在读' GROUP BY c.college_name ORDER BY student_count DESC"
+  },
+  {
+    "question": "统计各专业当前学生人数",
+    "aliases": [
+      "按专业统计在读学生人数"
+    ],
+    "sql": "SELECT m.major_name, COUNT(*) AS student_count FROM students s JOIN majors m ON s.major_id = m.major_id WHERE s.status = '在读' GROUP BY m.major_name ORDER BY student_count DESC"
+  },
+  {
+    "question": "统计各班级在读学生人数",
+    "aliases": [
+      "各班在读人数"
+    ],
+    "sql": "SELECT cl.class_name, COUNT(*) AS student_count FROM students s JOIN classes cl ON s.class_id = cl.class_id WHERE s.status = '在读' GROUP BY cl.class_name ORDER BY student_count DESC"
+  },
+  {
+    "question": "统计各学院女生人数",
+    "aliases": [
+      "按学院统计女生数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS female_count FROM students s JOIN colleges c ON s.college_id = c.college_id WHERE s.status = '在读' AND s.gender = '女' GROUP BY c.college_name ORDER BY female_count DESC"
+  },
+  {
+    "question": "统计各学院男生人数",
+    "aliases": [
+      "按学院统计男生数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS male_count FROM students s JOIN colleges c ON s.college_id = c.college_id WHERE s.status = '在读' AND s.gender = '男' GROUP BY c.college_name ORDER BY male_count DESC"
+  },
+  {
+    "question": "查询各学院核心专业课平均分",
+    "aliases": [
+      "各学院核心课平均成绩"
+    ],
+    "sql": "SELECT c.college_name, ROUND(AVG(e.score), 2) AS avg_score FROM enrollments e JOIN students s ON e.student_id = s.student_id JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses co ON o.course_id = co.course_id JOIN colleges c ON s.college_id = c.college_id WHERE co.course_type = '核心专业课' GROUP BY c.college_name ORDER BY avg_score DESC"
+  },
+  {
+    "question": "查询数据库系统课程的通过率",
+    "aliases": [
+      "数据库系统通过率"
+    ],
+    "sql": "SELECT ROUND(AVG(CASE WHEN e.passed = 1 THEN 1.0 ELSE 0 END), 3) AS pass_rate FROM enrollments e JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses c ON o.course_id = c.course_id WHERE c.course_name = '数据库系统'"
+  },
+  {
+    "question": "查询机器学习课程的通过率",
+    "aliases": [
+      "机器学习通过率"
+    ],
+    "sql": "SELECT ROUND(AVG(CASE WHEN e.passed = 1 THEN 1.0 ELSE 0 END), 3) AS pass_rate FROM enrollments e JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses c ON o.course_id = c.course_id WHERE c.course_name = '机器学习'"
+  },
+  {
+    "question": "查询挂科学生人数",
+    "aliases": [
+      "有挂科记录的学生数"
+    ],
+    "sql": "SELECT COUNT(DISTINCT student_id) AS failed_student_count FROM enrollments WHERE passed = 0"
+  },
+  {
+    "question": "统计各学院挂科率",
+    "aliases": [
+      "按学院统计挂科率"
+    ],
+    "sql": "SELECT c.college_name, ROUND(AVG(CASE WHEN e.passed = 0 THEN 1.0 ELSE 0 END), 3) AS fail_rate FROM enrollments e JOIN students s ON e.student_id = s.student_id JOIN colleges c ON s.college_id = c.college_id GROUP BY c.college_name ORDER BY fail_rate DESC"
+  },
+  {
+    "question": "统计通识选修课平均分",
+    "aliases": [
+      "通识选修平均成绩"
+    ],
+    "sql": "SELECT ROUND(AVG(e.score), 2) AS avg_score FROM enrollments e JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses c ON o.course_id = c.course_id WHERE c.course_type = '通识选修'"
+  },
+  {
+    "question": "统计各课程选课人数",
+    "aliases": [
+      "各门课选课人数"
+    ],
+    "sql": "SELECT c.course_name, COUNT(*) AS enrollment_count FROM enrollments e JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses c ON o.course_id = c.course_id GROUP BY c.course_name ORDER BY enrollment_count DESC"
+  },
+  {
+    "question": "查询学分最高的课程",
+    "aliases": [
+      "最高学分课程"
+    ],
+    "sql": "SELECT course_name, credit FROM courses ORDER BY credit DESC LIMIT 1"
+  },
+  {
+    "question": "查询当前在读学生最多的学院",
+    "aliases": [
+      "学生数最多的学院"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS student_count FROM students s JOIN colleges c ON s.college_id = c.college_id WHERE s.status = '在读' GROUP BY c.college_name ORDER BY student_count DESC LIMIT 1"
+  },
+  {
+    "question": "统计各宿舍楼报修工单数量",
+    "aliases": [
+      "按宿舍楼统计报修数"
+    ],
+    "sql": "SELECT d.building_name, COUNT(*) AS repair_count FROM repair_orders r JOIN dormitories d ON r.dorm_id = d.dorm_id GROUP BY d.building_name ORDER BY repair_count DESC"
+  },
+  {
+    "question": "查询报修最多的类别",
+    "aliases": [
+      "最常见报修类别"
+    ],
+    "sql": "SELECT category, COUNT(*) AS repair_count FROM repair_orders GROUP BY category ORDER BY repair_count DESC LIMIT 1"
+  },
+  {
+    "question": "查询还未完成的宿舍报修单数量",
+    "aliases": [
+      "未完成报修数"
+    ],
+    "sql": "SELECT COUNT(*) AS pending_repairs FROM repair_orders WHERE status <> '已完成'"
+  },
+  {
+    "question": "统计各校区宿舍报修数量",
+    "aliases": [
+      "按校区统计报修数"
+    ],
+    "sql": "SELECT d.campus_name, COUNT(*) AS repair_count FROM repair_orders r JOIN dormitories d ON r.dorm_id = d.dorm_id GROUP BY d.campus_name ORDER BY repair_count DESC"
+  },
+  {
+    "question": "统计各月份宿舍报修趋势",
+    "aliases": [
+      "宿舍报修月度趋势"
+    ],
+    "sql": "SELECT substr(report_date, 1, 7) AS month, COUNT(*) AS repair_count FROM repair_orders GROUP BY substr(report_date, 1, 7) ORDER BY month"
+  },
+  {
+    "question": "查询获得奖励的学生人数",
+    "aliases": [
+      "奖励学生数量"
+    ],
+    "sql": "SELECT COUNT(DISTINCT student_id) AS rewarded_students FROM awards_penalties WHERE record_type = '奖励'"
+  },
+  {
+    "question": "查询受到惩罚的学生人数",
+    "aliases": [
+      "惩罚学生数量"
+    ],
+    "sql": "SELECT COUNT(DISTINCT student_id) AS penalized_students FROM awards_penalties WHERE record_type = '惩罚'"
+  },
+  {
+    "question": "统计各学院奖励记录数量",
+    "aliases": [
+      "按学院统计奖励记录"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS reward_count FROM awards_penalties ap JOIN students s ON ap.student_id = s.student_id JOIN colleges c ON s.college_id = c.college_id WHERE ap.record_type = '奖励' GROUP BY c.college_name ORDER BY reward_count DESC"
+  },
+  {
+    "question": "统计各学院惩罚记录数量",
+    "aliases": [
+      "按学院统计惩罚记录"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS penalty_count FROM awards_penalties ap JOIN students s ON ap.student_id = s.student_id JOIN colleges c ON s.college_id = c.college_id WHERE ap.record_type = '惩罚' GROUP BY c.college_name ORDER BY penalty_count DESC"
+  },
+  {
+    "question": "查询国家级项目数量",
+    "aliases": [
+      "国家级项目个数"
+    ],
+    "sql": "SELECT COUNT(*) AS national_projects FROM projects WHERE project_level = '国家级'"
+  },
+  {
+    "question": "统计各学院国家级项目数量",
+    "aliases": [
+      "各学院国家级项目数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS national_project_count FROM projects p JOIN colleges c ON p.college_id = c.college_id WHERE p.project_level = '国家级' GROUP BY c.college_name ORDER BY national_project_count DESC"
+  },
+  {
+    "question": "统计各学院科研经费总额",
+    "aliases": [
+      "各学院项目经费总额"
+    ],
+    "sql": "SELECT c.college_name, ROUND(SUM(p.funding), 2) AS total_funding FROM projects p JOIN colleges c ON p.college_id = c.college_id GROUP BY c.college_name ORDER BY total_funding DESC"
+  },
+  {
+    "question": "查询经费最高的项目",
+    "aliases": [
+      "最高经费项目"
+    ],
+    "sql": "SELECT project_name, funding FROM projects ORDER BY funding DESC LIMIT 1"
+  },
+  {
+    "question": "统计近三年项目立项趋势",
+    "aliases": [
+      "项目年度趋势"
+    ],
+    "sql": "SELECT approved_year, COUNT(*) AS project_count FROM projects WHERE approved_year >= 2022 GROUP BY approved_year ORDER BY approved_year"
+  },
+  {
+    "question": "统计近三年国家级项目趋势",
+    "aliases": [
+      "国家级项目年度趋势"
+    ],
+    "sql": "SELECT approved_year, COUNT(*) AS project_count FROM projects WHERE project_level = '国家级' AND approved_year >= 2022 GROUP BY approved_year ORDER BY approved_year"
+  },
+  {
+    "question": "统计各学院一区论文数量",
+    "aliases": [
+      "各学院一区论文数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS zone1_papers FROM papers p JOIN colleges c ON p.college_id = c.college_id WHERE p.zone = '一区' GROUP BY c.college_name ORDER BY zone1_papers DESC"
+  },
+  {
+    "question": "统计近三年一区论文趋势",
+    "aliases": [
+      "一区论文年度趋势"
+    ],
+    "sql": "SELECT publish_year, COUNT(*) AS paper_count FROM papers WHERE zone = '一区' AND publish_year >= 2022 GROUP BY publish_year ORDER BY publish_year"
+  },
+  {
+    "question": "查询一区论文数量最多的学院",
+    "aliases": [
+      "一区论文最多的学院"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS zone1_papers FROM papers p JOIN colleges c ON p.college_id = c.college_id WHERE p.zone = '一区' GROUP BY c.college_name ORDER BY zone1_papers DESC LIMIT 1"
+  },
+  {
+    "question": "查询每位教师的项目数量",
+    "aliases": [
+      "教师项目数统计"
+    ],
+    "sql": "SELECT t.teacher_name, COUNT(p.project_id) AS project_count FROM teachers t LEFT JOIN projects p ON t.teacher_id = p.teacher_id GROUP BY t.teacher_name ORDER BY project_count DESC"
+  },
+  {
+    "question": "查询每位教师的一区论文数量",
+    "aliases": [
+      "教师一区论文数"
+    ],
+    "sql": "SELECT t.teacher_name, COUNT(p.paper_id) AS zone1_paper_count FROM teachers t LEFT JOIN papers p ON t.teacher_id = p.teacher_id AND p.zone = '一区' GROUP BY t.teacher_name ORDER BY zone1_paper_count DESC"
+  },
+  {
+    "question": "查询既有国家级项目又有一区论文的教师",
+    "aliases": [
+      "同时有国家级项目和一区论文的教师"
+    ],
+    "sql": "SELECT DISTINCT t.teacher_name FROM teachers t JOIN projects pr ON t.teacher_id = pr.teacher_id JOIN papers pa ON t.teacher_id = pa.teacher_id WHERE pr.project_level = '国家级' AND pa.zone = '一区' ORDER BY t.teacher_name"
+  },
+  {
+    "question": "查询未发表一区论文的教师",
+    "aliases": [
+      "没有一区论文的教师"
+    ],
+    "sql": "SELECT t.teacher_name FROM teachers t WHERE t.teacher_id NOT IN (SELECT teacher_id FROM papers WHERE zone = '一区') ORDER BY t.teacher_name"
+  },
+  {
+    "question": "查询没有国家级项目的学院",
+    "aliases": [
+      "未获国家级项目的学院"
+    ],
+    "sql": "SELECT college_name FROM colleges WHERE college_id NOT IN (SELECT college_id FROM projects WHERE project_level = '国家级') ORDER BY college_name"
+  },
+  {
+    "question": "查询没有奖励记录的学院",
+    "aliases": [
+      "无奖励记录学院"
+    ],
+    "sql": "SELECT c.college_name FROM colleges c WHERE c.college_id NOT IN (SELECT DISTINCT s.college_id FROM awards_penalties ap JOIN students s ON ap.student_id = s.student_id WHERE ap.record_type = '奖励') ORDER BY c.college_name"
+  },
+  {
+    "question": "查询各学院平均绩点",
+    "aliases": [
+      "各学院 GPA"
+    ],
+    "sql": "SELECT c.college_name, ROUND(AVG(e.grade_point), 2) AS avg_gpa FROM enrollments e JOIN students s ON e.student_id = s.student_id JOIN colleges c ON s.college_id = c.college_id GROUP BY c.college_name ORDER BY avg_gpa DESC"
+  },
+  {
+    "question": "查询平均绩点最高的学院",
+    "aliases": [
+      "GPA最高的学院"
+    ],
+    "sql": "SELECT c.college_name, ROUND(AVG(e.grade_point), 2) AS avg_gpa FROM enrollments e JOIN students s ON e.student_id = s.student_id JOIN colleges c ON s.college_id = c.college_id GROUP BY c.college_name ORDER BY avg_gpa DESC LIMIT 1"
+  },
+  {
+    "question": "查询在读学生的平均绩点",
+    "aliases": [
+      "当前学生平均绩点"
+    ],
+    "sql": "SELECT ROUND(AVG(e.grade_point), 2) AS avg_gpa FROM enrollments e JOIN students s ON e.student_id = s.student_id WHERE s.status = '在读'"
+  },
+  {
+    "question": "统计各校区开课数量",
+    "aliases": [
+      "按校区统计课程开设数"
+    ],
+    "sql": "SELECT campus_name, COUNT(*) AS offering_count FROM course_offerings GROUP BY campus_name ORDER BY offering_count DESC"
+  },
+  {
+    "question": "查询学院路校区开课数量",
+    "aliases": [
+      "学院路校区课程数"
+    ],
+    "sql": "SELECT COUNT(*) AS offering_count FROM course_offerings WHERE campus_name = '学院路校区'"
+  },
+  {
+    "question": "查询沙河校区开课数量",
+    "aliases": [
+      "沙河校区课程数"
+    ],
+    "sql": "SELECT COUNT(*) AS offering_count FROM course_offerings WHERE campus_name = '沙河校区'"
+  },
+  {
+    "question": "查询各课程平均分排名前五",
+    "aliases": [
+      "平均分前五课程"
+    ],
+    "sql": "SELECT c.course_name, ROUND(AVG(e.score), 2) AS avg_score FROM enrollments e JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses c ON o.course_id = c.course_id GROUP BY c.course_name ORDER BY avg_score DESC LIMIT 5"
+  },
+  {
+    "question": "查询各课程挂科人数排名前五",
+    "aliases": [
+      "挂科人数前五课程"
+    ],
+    "sql": "SELECT c.course_name, SUM(CASE WHEN e.passed = 0 THEN 1 ELSE 0 END) AS fail_count FROM enrollments e JOIN course_offerings o ON e.offering_id = o.offering_id JOIN courses c ON o.course_id = c.course_id GROUP BY c.course_name ORDER BY fail_count DESC LIMIT 5"
+  },
+  {
+    "question": "查询每个学院的教师数量",
+    "aliases": [
+      "各学院教师数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS teacher_count FROM teachers t JOIN colleges c ON t.college_id = c.college_id GROUP BY c.college_name ORDER BY teacher_count DESC"
+  },
+  {
+    "question": "查询教授数量最多的学院",
+    "aliases": [
+      "教授最多的学院"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS professor_count FROM teachers t JOIN colleges c ON t.college_id = c.college_id WHERE t.title = '教授' GROUP BY c.college_name ORDER BY professor_count DESC LIMIT 1"
+  },
+  {
+    "question": "查询各学院教授数量",
+    "aliases": [
+      "按学院统计教授数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS professor_count FROM teachers t JOIN colleges c ON t.college_id = c.college_id WHERE t.title = '教授' GROUP BY c.college_name ORDER BY professor_count DESC"
+  },
+  {
+    "question": "查询各学院副教授数量",
+    "aliases": [
+      "按学院统计副教授数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS associate_professor_count FROM teachers t JOIN colleges c ON t.college_id = c.college_id WHERE t.title = '副教授' GROUP BY c.college_name ORDER BY associate_professor_count DESC"
+  },
+  {
+    "question": "查询经费总额最高的学院",
+    "aliases": [
+      "科研经费最高学院"
+    ],
+    "sql": "SELECT c.college_name, ROUND(SUM(p.funding), 2) AS total_funding FROM projects p JOIN colleges c ON p.college_id = c.college_id GROUP BY c.college_name ORDER BY total_funding DESC LIMIT 1"
+  },
+  {
+    "question": "查询每年新增一区论文数量",
+    "aliases": [
+      "年度新增一区论文"
+    ],
+    "sql": "SELECT publish_year, COUNT(*) AS paper_count FROM papers WHERE zone = '一区' GROUP BY publish_year ORDER BY publish_year"
+  },
+  {
+    "question": "查询每年新增项目数量",
+    "aliases": [
+      "年度新增项目"
+    ],
+    "sql": "SELECT approved_year, COUNT(*) AS project_count FROM projects GROUP BY approved_year ORDER BY approved_year"
+  },
+  {
+    "question": "查询在读学生最多的专业",
+    "aliases": [
+      "学生最多的专业"
+    ],
+    "sql": "SELECT m.major_name, COUNT(*) AS student_count FROM students s JOIN majors m ON s.major_id = m.major_id WHERE s.status = '在读' GROUP BY m.major_name ORDER BY student_count DESC LIMIT 1"
+  },
+  {
+    "question": "查询没有挂科记录的学生人数",
+    "aliases": [
+      "无挂科学生数量"
+    ],
+    "sql": "SELECT COUNT(*) AS no_fail_students FROM students s WHERE s.student_id NOT IN (SELECT DISTINCT student_id FROM enrollments WHERE passed = 0)"
+  },
+  {
+    "question": "查询有奖励且没有惩罚的学生人数",
+    "aliases": [
+      "只奖励无惩罚学生数"
+    ],
+    "sql": "SELECT COUNT(*) AS clean_reward_students FROM students s WHERE s.student_id IN (SELECT student_id FROM awards_penalties WHERE record_type = '奖励') AND s.student_id NOT IN (SELECT student_id FROM awards_penalties WHERE record_type = '惩罚')"
+  },
+  {
+    "question": "查询国家级项目经费总额",
+    "aliases": [
+      "国家级项目总经费"
+    ],
+    "sql": "SELECT ROUND(SUM(funding), 2) AS total_funding FROM projects WHERE project_level = '国家级'"
+  },
+  {
+    "question": "查询在研项目数量",
+    "aliases": [
+      "当前在研项目数"
+    ],
+    "sql": "SELECT COUNT(*) AS active_projects FROM projects WHERE status = '在研'"
+  },
+  {
+    "question": "查询结题项目数量",
+    "aliases": [
+      "已结题项目数"
+    ],
+    "sql": "SELECT COUNT(*) AS closed_projects FROM projects WHERE status = '结题'"
+  },
+  {
+    "question": "查询各学院在研项目数量",
+    "aliases": [
+      "各学院在研项目数"
+    ],
+    "sql": "SELECT c.college_name, COUNT(*) AS active_projects FROM projects p JOIN colleges c ON p.college_id = c.college_id WHERE p.status = '在研' GROUP BY c.college_name ORDER BY active_projects DESC"
+  },
+  {
+    "question": "统计近三年省部级项目趋势",
+    "aliases": [
+      "省部级项目年度趋势"
+    ],
+    "sql": "SELECT approved_year, COUNT(*) AS project_count FROM projects WHERE project_level = '省部级' AND approved_year >= 2022 GROUP BY approved_year ORDER BY approved_year"
+  },
+  {
+    "question": "统计近三年全部论文趋势",
+    "aliases": [
+      "全部论文年度趋势"
+    ],
+    "sql": "SELECT publish_year, COUNT(*) AS paper_count FROM papers WHERE publish_year >= 2022 GROUP BY publish_year ORDER BY publish_year"
+  },
+  {
+    "question": "查看近三年项目趋势",
+    "aliases": [
+      "近三年项目走势"
+    ],
+    "type": "clarification",
+    "clarification_question": "你要看哪一类项目趋势？",
+    "options": [
+      "全部项目",
+      "国家级项目",
+      "省部级项目"
+    ],
+    "followups": {
+      "全部项目": "统计近三年项目立项趋势",
+      "国家级项目": "统计近三年国家级项目趋势",
+      "省部级项目": "统计近三年省部级项目趋势"
+    }
+  },
+  {
+    "question": "查看论文趋势",
+    "aliases": [
+      "论文年度趋势"
+    ],
+    "type": "clarification",
+    "clarification_question": "你要看全部论文还是一区论文趋势？",
+    "options": [
+      "全部论文",
+      "一区论文"
+    ],
+    "followups": {
+      "全部论文": "统计近三年全部论文趋势",
+      "一区论文": "统计近三年一区论文趋势"
+    }
+  },
+  {
+    "question": "查看学生规模",
+    "aliases": [
+      "学生规模统计"
+    ],
+    "type": "clarification",
+    "clarification_question": "你要按学院、专业还是班级查看学生规模？",
+    "options": [
+      "学院",
+      "专业",
+      "班级"
+    ],
+    "followups": {
+      "学院": "统计各学院当前学生人数",
+      "专业": "统计各专业当前学生人数",
+      "班级": "统计各班级在读学生人数"
+    }
+  }
+]
