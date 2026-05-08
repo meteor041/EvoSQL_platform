@@ -108,6 +108,9 @@ def get_query_result(task_id: str) -> dict:
         "fallback_applied": result.fallback_applied,
         "candidate_records": result.candidate_records,
         "attempted_candidate_records": result.attempted_candidate_records,
+        "context_snapshots": result.context_snapshots,
+        "cluster_records": result.cluster_records,
+        "selection_rationale": result.selection_rationale,
     }
 
 
