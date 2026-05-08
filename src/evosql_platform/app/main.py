@@ -25,6 +25,8 @@ app.add_middleware(
 service = QueryService()
 static_dir = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+assets_dir = static_dir / "assets"
+app.mount("/assets", StaticFiles(directory=assets_dir, check_dir=False), name="assets")
 
 
 class QueryRequest(BaseModel):
@@ -60,6 +62,13 @@ class LLMEnabledRequest(BaseModel):
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(static_dir / "index.html")
+
+
+@app.get("/logo.png")
+def favicon() -> FileResponse:
+    if not (static_dir / "logo.png").exists():
+        raise HTTPException(status_code=404, detail="Logo not found")
+    return FileResponse(static_dir / "logo.png")
 
 
 @app.post("/api/query")

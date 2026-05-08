@@ -1,5 +1,6 @@
-from evosql_platform.app.main import get_query_result, service as api_service
+from evosql_platform.app.main import app, favicon, get_query_result, service as api_service
 from evosql_platform.app.service import QueryService
+from fastapi import HTTPException
 
 
 def test_campus_query_returns_rows() -> None:
@@ -51,3 +52,15 @@ def test_query_result_api_includes_eca_visualization_fields() -> None:
     assert payload["context_snapshots"]
     assert payload["cluster_records"]
     assert payload["selection_rationale"]["selected_sql"] == payload["final_sql"]
+
+
+def test_static_routes_for_vite_assets_are_registered() -> None:
+    mounted_paths = {route.path for route in app.routes}
+    assert "/static" in mounted_paths
+    assert "/assets" in mounted_paths
+    try:
+        response = favicon()
+    except HTTPException as exc:
+        assert exc.status_code == 404
+    else:
+        assert response.path.endswith("logo.png")
