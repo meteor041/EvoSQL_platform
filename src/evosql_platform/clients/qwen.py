@@ -229,13 +229,16 @@ class QwenClient(LLMClient):
     def _build_generation_prompt(self, context: ContextState, sample_size: int) -> str:
         schema_text = self._format_schema(context.schema_subset, include_foreign_keys=True)
         hints = json.dumps(context.history_hints, ensure_ascii=False)
+        anchors = json.dumps(context.semantic_anchors, ensure_ascii=False)
         knowledge = json.dumps(context.external_knowledge, ensure_ascii=False)
         return (
             f"Question: {context.question}\n"
             f"Role: {context.role}\n"
+            f"Iteration: {context.iteration}\n"
             f"Instruction: {context.instruction}\n"
             f"External knowledge: {knowledge}\n"
             f"History hints: {hints}\n"
+            f"Semantic anchors: {anchors}\n"
             f"Schema subset:\n{schema_text}\n\n"
             f"Generate {sample_size} distinct candidate SQL queries for SQLite. "
             "Each query must be a single read-only SELECT statement. "

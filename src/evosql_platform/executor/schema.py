@@ -48,3 +48,35 @@ class SchemaRegistry:
         if not allowed_tables:
             return schema
         return {"tables": {name: spec for name, spec in schema["tables"].items() if name in set(allowed_tables)}}
+
+    def subset_columns(
+        self,
+        schema: dict[str, Any],
+        allowed_tables: set[str],
+        allowed_columns: dict[str, set[str]] | None = None,
+    ) -> dict[str, Any]:
+        if not allowed_tables:
+            return schema
+        allowed_columns = allowed_columns or {}
+        tables: dict[str, Any] = {}
+        for table_name, spec in schema.get("tables", {}).items():
+            if table_name not in allowed_tables:
+                continue
+            column_names = allowed_columns.get(table_name, set())
+            if not column_names:
+                tables[table_name] = spec
+                continue
+            tables[table_name] = {
+                **spec,
+                "columns": [
+                    column
+                    for column in spec.get("columns", [])
+                    if column.get("name") in column_names or column.get("primary_key")
+                ],
+                "foreign_keys": [
+                    fk
+                    for fk in spec.get("foreign_keys", [])
+                    if fk.get("from") in column_names or fk.get("to_column") in column_names
+                ],
+            }
+        return {"tables": tables}

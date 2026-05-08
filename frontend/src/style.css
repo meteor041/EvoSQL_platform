@@ -1091,6 +1091,99 @@ pre {
   border-radius: 6px;
 }
 
+.score-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.score-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.context-list,
+.cluster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.context-card,
+.cluster-card,
+.rationale-box {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: 10px 12px;
+}
+
+.context-head,
+.cluster-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink-1);
+  font-size: 12.5px;
+}
+
+.context-head span,
+.cluster-head span {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.context-line,
+.cluster-line {
+  margin-top: 7px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.cluster-sql {
+  margin: 9px 0 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 92px;
+  overflow: hidden;
+}
+
+.rationale-main {
+  color: var(--ink-1);
+  line-height: 1.55;
+  font-size: 13px;
+}
+
 .trace-list {
   display: flex;
   flex-direction: column;
@@ -1674,6 +1767,7 @@ pre {
   .composer,
   .overview-grid,
   .row-2,
+  .row-3,
   .row-3-2,
   .settings-grid {
     grid-template-columns: 1fr;
@@ -1757,6 +1851,7 @@ pre {
   .kpi-row,
   .safety-grid,
   .audit-filters,
+  .row-3,
   .llm-form-grid {
     grid-template-columns: 1fr;
   }

@@ -26,7 +26,7 @@
 
 ## 阶段 A：上下文结构重构
 
-状态：待完成
+状态：已完成
 
 ### 实现任务
 1. 扩展 `ContextState`：
@@ -49,7 +49,7 @@
 
 ## 阶段 B：SCR 列级重构
 
-状态：待完成
+状态：已完成
 
 ### 实现任务
 1. 从候选池解析引用表和引用列。
@@ -69,7 +69,7 @@
 
 ## 阶段 C：ECA 簇与语义锚点重构
 
-状态：待完成
+状态：已完成
 
 ### 实现任务
 1. 统一候选执行结果摘要：
@@ -95,7 +95,7 @@
 
 ## 阶段 D：调度器与 early-stop 重构
 
-状态：待完成
+状态：已完成
 
 ### 实现任务
 1. 调度输入增加运行时信号：
@@ -123,7 +123,7 @@
 
 ## 阶段 E：score 与最终选择重构
 
-状态：待完成
+状态：已完成
 
 ### 实现任务
 1. 候选分数拆为：
@@ -157,7 +157,7 @@
 
 ## 阶段 F：前端可解释性同步升级
 
-状态：待完成
+状态：已完成
 
 ### 实现任务
 1. 展示每轮上下文卡片：
@@ -179,6 +179,26 @@
 1. Python 单元测试：`pytest`
 2. 指定解释器回归：`E:\anaconda3\python.exe -m pytest`
 3. 前端 SFC 编译检查：使用 `@vue/compiler-sfc`，不执行 `npm run build`
+
+## 本轮执行结果
+
+状态：已完成
+
+完成内容：
+
+1. 阶段 A：新增 `semantic_anchors`、`iteration`、上下文快照和 trace refinement 字段。
+2. 阶段 B：SCR 支持表列 union、列级 schema 裁剪和提示清空。
+3. 阶段 C：ECA 输出 execution clusters、Top-k anchors 和下一轮语义锚点。
+4. 阶段 D：scheduler 新增运行时信号、动态 sample/top-k 和多因素 early-stop。
+5. 阶段 E：候选输出 score breakdown，并按主一致性簇与 `final_score` 选择最终 SQL。
+6. 阶段 F：前端展示上下文演化、ECA 簇、score breakdown 和最终决策说明。
+
+验证结果：
+
+1. `python -m pytest -q`：16 passed
+2. `E:\anaconda3\python.exe -m pytest -q`：16 passed
+3. `node` + `@vue/compiler-sfc` SFC 编译检查：App.vue SFC compile ok
+4. 未执行 `npm run build`
 
 ---
 

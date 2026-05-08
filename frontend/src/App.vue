@@ -139,6 +139,9 @@ const activeCandidateRecords = computed(() => state.result?.candidate_records ||
 const attemptedCandidateRecords = computed(() => state.result?.attempted_candidate_records || [])
 const hasSeparateAttemptChain = computed(() => state.result?.fallback_applied && attemptedCandidateRecords.value.length > 0)
 const traceSteps = computed(() => normalizeTraceSteps(state.result?.trace_steps || []))
+const contextSnapshots = computed(() => state.result?.context_snapshots || [])
+const clusterRecords = computed(() => state.result?.cluster_records || [])
+const selectionRationale = computed(() => state.result?.selection_rationale || null)
 const safetyItems = computed(() => normalizeSafetyChecks(state.result?.safety_checks || []))
 const safetyPassCount = computed(() => safetyItems.value.filter((item) => item.state === 'pass').length)
 const auditPage = computed(() => Math.floor(state.auditOffset / state.auditLimit) + 1)
@@ -481,6 +484,28 @@ function candidateKey(candidate, index, prefix) {
 
 function toggleCandidate(key) {
   state.expandedCandidates[key] = !state.expandedCandidates[key]
+}
+
+function scoreEntries(candidate) {
+  const breakdown = candidate?.score_breakdown || {}
+  return Object.entries(breakdown).map(([key, value]) => ({
+    key,
+    label: key.replace(/_/g, ' '),
+    value: typeof value === 'number' ? value.toFixed(3) : value
+  }))
+}
+
+function contextTableNames(snapshot) {
+  return (snapshot?.schema?.tables || []).map((item) => item.table).join(', ') || 'n/a'
+}
+
+function contextColumnCount(snapshot) {
+  return snapshot?.schema?.column_count ?? 0
+}
+
+function clusterPreview(cluster) {
+  const sql = cluster?.representative_sql || ''
+  return sql.length > 180 ? `${sql.slice(0, 180)}...` : sql
 }
 
 async function runQuery(question = state.question) {
@@ -1085,6 +1110,11 @@ loadLlmConfigs()
                       <pre class="cand-preview" :class="{ expanded: state.expandedCandidates[candidateKey(candidate, index, 'attempt')] }">{{ candidate.sql }}</pre>
                       <div class="cand-kv">tables={{ (candidate.referenced_tables || []).join(', ') || 'n/a' }}</div>
                       <div class="cand-kv">columns={{ (candidate.referenced_columns || []).join(', ') || 'n/a' }}</div>
+                      <div v-if="scoreEntries(candidate).length" class="score-grid">
+                        <span v-for="score in scoreEntries(candidate)" :key="score.key" class="score-pill">
+                          {{ score.label }}={{ score.value }}
+                        </span>
+                      </div>
                       <div v-if="candidate.error" class="cand-error">{{ candidate.error }}</div>
                       <button class="btn sm cand-toggle" type="button" @click="toggleCandidate(candidateKey(candidate, index, 'attempt'))">
                         {{ state.expandedCandidates[candidateKey(candidate, index, 'attempt')] ? '收起 SQL' : '展开 SQL' }}
@@ -1124,6 +1154,11 @@ loadLlmConfigs()
                       <div class="cand-kv">tables={{ (candidate.referenced_tables || []).join(', ') || 'n/a' }}</div>
                       <div class="cand-kv">columns={{ (candidate.referenced_columns || []).join(', ') || 'n/a' }}</div>
                       <div v-if="candidate.execution_signature" class="cand-kv">signature={{ candidate.execution_signature }}</div>
+                      <div v-if="scoreEntries(candidate).length" class="score-grid">
+                        <span v-for="score in scoreEntries(candidate)" :key="score.key" class="score-pill">
+                          {{ score.label }}={{ score.value }}
+                        </span>
+                      </div>
                       <div v-if="candidate.error" class="cand-error">{{ candidate.error }}</div>
                       <div v-if="candidate.execution_preview?.length" class="dtable-wrap candidate-preview-table">
                         <table class="dtable compact-table">
@@ -1199,6 +1234,78 @@ loadLlmConfigs()
                   <div v-else class="empty compact">
                     <div class="empty-icon"><IconSymbol name="shield" :size="24" /></div>
                     <div class="empty-title">暂无安全检查结果</div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div class="row-3">
+              <section class="panel">
+                <header class="panel-head">
+                  <div class="panel-title">上下文演化</div>
+                  <div class="panel-sub">C^(t)</div>
+                </header>
+                <div class="panel-body">
+                  <div v-if="contextSnapshots.length" class="context-list">
+                    <article v-for="snapshot in contextSnapshots" :key="`${snapshot.label}-${snapshot.iteration}`" class="context-card">
+                      <div class="context-head">
+                        <strong>{{ snapshot.label }}</strong>
+                        <span>{{ snapshot.schema?.table_count || 0 }} tables · {{ contextColumnCount(snapshot) }} cols</span>
+                      </div>
+                      <div class="context-line">tables={{ contextTableNames(snapshot) }}</div>
+                      <div class="context-line">anchors={{ snapshot.semantic_anchor_count || 0 }} · hints={{ snapshot.history_hint_count || 0 }}</div>
+                    </article>
+                  </div>
+                  <div v-else class="empty compact">
+                    <div class="empty-icon"><IconSymbol name="trace" :size="24" /></div>
+                    <div class="empty-title">暂无上下文快照</div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel">
+                <header class="panel-head">
+                  <div class="panel-title">ECA 簇视图</div>
+                  <div class="panel-sub">{{ clusterRecords.length }} clusters</div>
+                </header>
+                <div class="panel-body">
+                  <div v-if="clusterRecords.length" class="cluster-list">
+                    <article v-for="cluster in clusterRecords" :key="`${cluster.iteration}-${cluster.cluster_id}`" class="cluster-card">
+                      <div class="cluster-head">
+                        <strong>iter {{ cluster.iteration }} · {{ cluster.cluster_id }}</strong>
+                        <span>{{ cluster.candidate_count }} candidates</span>
+                      </div>
+                      <div class="cluster-line">score={{ cluster.representative_score }} · rows={{ cluster.result_summary?.row_count ?? 'n/a' }}</div>
+                      <div class="cluster-line">tables={{ (cluster.referenced_tables || []).join(', ') || 'n/a' }}</div>
+                      <pre class="cluster-sql">{{ clusterPreview(cluster) }}</pre>
+                    </article>
+                  </div>
+                  <div v-else class="empty compact">
+                    <div class="empty-icon"><IconSymbol name="sql" :size="24" /></div>
+                    <div class="empty-title">暂无执行簇</div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel">
+                <header class="panel-head">
+                  <div class="panel-title">最终决策</div>
+                  <div class="panel-sub">selection rationale</div>
+                </header>
+                <div class="panel-body">
+                  <div v-if="selectionRationale" class="rationale-box">
+                    <div class="rationale-main">{{ selectionRationale.reason || 'n/a' }}</div>
+                    <div class="context-line">cluster={{ selectionRationale.dominant_cluster_id || 'n/a' }} · size={{ selectionRationale.dominant_cluster_size || 0 }}</div>
+                    <div class="context-line">score={{ selectionRationale.selected_score ?? 'n/a' }}</div>
+                    <div v-if="selectionRationale.score_breakdown" class="score-grid">
+                      <span v-for="(value, key) in selectionRationale.score_breakdown" :key="key" class="score-pill">
+                        {{ String(key).replace(/_/g, ' ') }}={{ typeof value === 'number' ? value.toFixed(3) : value }}
+                      </span>
+                    </div>
+                  </div>
+                  <div v-else class="empty compact">
+                    <div class="empty-icon"><IconSymbol name="empty" :size="24" /></div>
+                    <div class="empty-title">暂无决策说明</div>
                   </div>
                 </div>
               </section>

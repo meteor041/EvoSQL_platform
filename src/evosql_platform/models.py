@@ -11,6 +11,8 @@ class ContextState:
     schema_subset: dict[str, Any]
     history_hints: list[dict[str, Any]] = field(default_factory=list)
     external_knowledge: dict[str, Any] = field(default_factory=dict)
+    semantic_anchors: list[dict[str, Any]] = field(default_factory=list)
+    iteration: int = 0
     domain: str = "campus"
     user_id: str = "demo-user"
     role: str = "admin"
@@ -25,6 +27,9 @@ class CandidateSQL:
     execution_preview: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
     score: float = 0.0
+    score_breakdown: dict[str, float] = field(default_factory=dict)
+    result_summary: dict[str, Any] = field(default_factory=dict)
+    cluster_id: str | None = None
     source: str = "llm"
 
 
@@ -34,6 +39,9 @@ class EngineTraceStep:
     strategy: str
     candidate_count: int
     summary: str
+    context_snapshot: dict[str, Any] = field(default_factory=dict)
+    refinement: dict[str, Any] = field(default_factory=dict)
+    clusters: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -58,6 +66,9 @@ class EngineResult:
     fallback_applied: bool = False
     candidate_records: list[dict[str, Any]] = field(default_factory=list)
     attempted_candidate_records: list[dict[str, Any]] = field(default_factory=list)
+    context_snapshots: list[dict[str, Any]] = field(default_factory=list)
+    cluster_records: list[dict[str, Any]] = field(default_factory=list)
+    selection_rationale: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
