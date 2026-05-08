@@ -21,6 +21,8 @@ def candidate_python_paths() -> list[Path]:
     explicit = os.getenv("BACKEND_PYTHON")
     if explicit:
         candidates.append(Path(explicit))
+    if os.name == "nt":
+        candidates.append(Path(r"E:\anaconda3\python.exe"))
     candidates.append(Path(sys.executable))
 
     path_python = shutil.which("python")
@@ -35,7 +37,6 @@ def candidate_python_paths() -> list[Path]:
             pass
         candidates.extend(
             [
-                Path(r"E:\anaconda3\python.exe"),
                 Path(r"C:\ProgramData\anaconda3\python.exe"),
                 Path(r"C:\ProgramData\miniconda3\python.exe"),
             ]
