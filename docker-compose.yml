@@ -8,6 +8,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8000
+      EVOSQL_DATA_DIR: /app/data
       CAMPUS_LLM_MODE: "${CAMPUS_LLM_MODE:-auto}"
       OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
     volumes:

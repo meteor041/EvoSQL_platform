@@ -12,6 +12,8 @@ RUN npm exec vite -- build
 FROM ${PYTHON_IMAGE} AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    EVOSQL_DATA_DIR=/app/data \
+    PYTHONPATH=/app/src \
     HOST=0.0.0.0 \
     PORT=8000
 

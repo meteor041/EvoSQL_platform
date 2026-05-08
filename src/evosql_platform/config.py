@@ -1,9 +1,10 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = ROOT / "data"
+DATA_DIR = Path(os.getenv("EVOSQL_DATA_DIR", ROOT / "data")).resolve()
 BIRD_DIR = DATA_DIR / "dev"
 CAMPUS_DIR = DATA_DIR / "campus"
 AUDIT_LOG_PATH = DATA_DIR / "audit_logs.jsonl"
