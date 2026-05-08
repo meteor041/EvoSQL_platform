@@ -1272,6 +1272,12 @@ pre {
   gap: 12px;
 }
 
+.safety-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .safety-row {
   display: flex;
   align-items: center;
@@ -1280,6 +1286,17 @@ pre {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-2);
+}
+
+.safety-policy-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  min-height: 98px;
 }
 
 .safety-icon {
@@ -1769,6 +1786,7 @@ pre {
   .row-2,
   .row-3,
   .row-3-2,
+  .safety-policy-grid,
   .settings-grid {
     grid-template-columns: 1fr;
   }
@@ -1850,6 +1868,7 @@ pre {
   .composer-meta,
   .kpi-row,
   .safety-grid,
+  .safety-policy-grid,
   .audit-filters,
   .row-3,
   .llm-form-grid {

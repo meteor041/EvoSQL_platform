@@ -128,6 +128,39 @@ const llmProviderOptions = [
   { value: 'mock', label: 'Mock', defaultBaseUrl: 'local://campus_qa' }
 ]
 
+const safetyPolicyItems = [
+  {
+    name: '单语句执行',
+    state: 'pass',
+    note: '每次只允许一条 SQL statement，阻断多语句拼接与批量注入。'
+  },
+  {
+    name: '只读查询',
+    state: 'pass',
+    note: '仅允许 SELECT / WITH / UNION / INTERSECT / EXCEPT 查询，拒绝写入和 DDL。'
+  },
+  {
+    name: '表级白名单',
+    state: 'pass',
+    note: 'SQL 引用表必须落在当前数据域允许表集合内，跨域表访问会被拦截。'
+  },
+  {
+    name: 'LIMIT 与最大行数',
+    state: 'pass',
+    note: '显式 LIMIT 不得超过后端 MAX_SQL_ROWS，沙箱执行也会限制返回行数。'
+  },
+  {
+    name: 'SQLite 沙箱',
+    state: 'pass',
+    note: '查询在受控 SQLite executor 中执行，带超时与进度中断保护。'
+  },
+  {
+    name: '审计留痕',
+    state: 'pass',
+    note: '问题、SQL、模型来源、候选链路和安全检查会写入 SQLite 审计表。'
+  }
+]
+
 const currentResultStatus = computed(() => state.result?.status || 'idle')
 const resultRows = computed(() => state.result?.result_rows || [])
 const resultColumns = computed(() => {
@@ -815,7 +848,12 @@ loadLlmConfigs()
           <span>模型设置</span>
           <span class="count">{{ state.llmConfigs.length }}</span>
         </button>
-        <button class="nav-item" type="button">
+        <button
+          class="nav-item"
+          type="button"
+          :class="{ active: state.activeView === 'safetyPolicy' }"
+          @click="state.activeView = 'safetyPolicy'"
+        >
           <span class="icon"><IconSymbol name="shield" /></span>
           <span>安全策略</span>
         </button>
@@ -1495,6 +1533,68 @@ loadLlmConfigs()
               <div v-else class="empty"><div class="empty-title">暂无安全检查结果</div></div>
             </div>
           </section>
+        </template>
+
+        <template v-else-if="state.activeView === 'safetyPolicy'">
+          <div class="page-head">
+            <div>
+              <div class="page-title">安全策略</div>
+              <div class="page-sub">系统级 SQL 安全边界、执行沙箱与审计策略</div>
+            </div>
+          </div>
+          <div class="stack">
+            <section class="panel">
+              <header class="panel-head">
+                <div>
+                  <div class="panel-title">策略总览</div>
+                  <div class="panel-sub">SQLSafetyInterceptor + SQLiteSandboxExecutor</div>
+                </div>
+                <div class="panel-actions">
+                  <span class="chip success"><span class="dot"></span>{{ safetyPolicyItems.length }} active</span>
+                </div>
+              </header>
+              <div class="panel-body">
+                <div class="safety-policy-grid">
+                  <article v-for="item in safetyPolicyItems" :key="item.name" class="safety-policy-card">
+                    <div class="safety-icon" :class="item.state">
+                      <IconSymbol name="check" :size="13" />
+                    </div>
+                    <div class="safety-text">
+                      <div class="safety-name">{{ item.name }}</div>
+                      <div class="safety-note">{{ item.note }}</div>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <header class="panel-head">
+                <div>
+                  <div class="panel-title">当前查询检查结果</div>
+                  <div class="panel-sub">最近一次任务的实际安全校验</div>
+                </div>
+              </header>
+              <div class="panel-body">
+                <div v-if="safetyItems.length" class="safety-grid">
+                  <div v-for="item in safetyItems" :key="item.key" class="safety-row">
+                    <div class="safety-icon" :class="item.state">
+                      <IconSymbol :name="item.state === 'pass' ? 'check' : item.state === 'warn' ? 'warn' : 'x'" :size="13" />
+                    </div>
+                    <div class="safety-text">
+                      <div class="safety-name">{{ item.name }}</div>
+                      <div class="safety-note">{{ item.note }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="empty">
+                  <div class="empty-icon"><IconSymbol name="shield" :size="28" /></div>
+                  <div class="empty-title">暂无查询安全检查结果</div>
+                  <div class="empty-sub">执行一次问数后，这里会显示真实校验链路</div>
+                </div>
+              </div>
+            </section>
+          </div>
         </template>
 
         <template v-else-if="state.activeView === 'audit'">
