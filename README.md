@@ -84,3 +84,17 @@ set OPENROUTER_API_KEY=ÄãµÄkey
 ## Screenshot
 
 ![EvoSQL Platform example](assets/example.png)
+
+## Docker
+
+Build and run locally:
+
+`ash
+docker compose up --build
+`
+
+The app listens on http://127.0.0.1:8000 by default. Runtime data is mounted from ./data and ./upload.
+
+## CI/CD
+
+GitHub Actions runs backend tests, builds the frontend with Vite, builds the Docker image, and publishes it to GitHub Container Registry on pushes to main and version tags.

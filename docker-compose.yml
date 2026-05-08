@@ -1,0 +1,16 @@
+services:
+  evosql-platform:
+    build:
+      context: .
+    image: evosql-platform:local
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+      CAMPUS_LLM_MODE: "${CAMPUS_LLM_MODE:-auto}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+    volumes:
+      - ./data:/app/data
+      - ./upload:/app/upload
+    restart: unless-stopped
