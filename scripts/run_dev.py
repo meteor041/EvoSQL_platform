@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import socket
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,6 +14,81 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+
+
+def candidate_python_paths() -> list[Path]:
+    candidates: list[Path] = []
+    explicit = os.getenv("BACKEND_PYTHON")
+    if explicit:
+        candidates.append(Path(explicit))
+    candidates.append(Path(sys.executable))
+
+    path_python = shutil.which("python")
+    if path_python:
+        candidates.append(Path(path_python))
+
+    if os.name == "nt":
+        try:
+            output = subprocess.check_output(["where.exe", "python"], text=True, stderr=subprocess.DEVNULL)
+            candidates.extend(Path(line.strip()) for line in output.splitlines() if line.strip())
+        except Exception:
+            pass
+        candidates.extend(
+            [
+                Path(r"E:\anaconda3\python.exe"),
+                Path(r"C:\ProgramData\anaconda3\python.exe"),
+                Path(r"C:\ProgramData\miniconda3\python.exe"),
+            ]
+        )
+
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        key = str(candidate.resolve()).lower() if os.name == "nt" else str(candidate.resolve())
+        if key not in seen:
+            seen.add(key)
+            unique.append(candidate)
+    return unique
+
+
+def python_supports_backend(python: Path) -> tuple[bool, str]:
+    command = [
+        str(python),
+        "-c",
+        (
+            "import sys; "
+            "sys.exit('Python >= 3.11 is required') if sys.version_info < (3, 11) else None; "
+            f"sys.path.insert(0, {str(SRC)!r}); "
+            "import fastapi, uvicorn, sqlglot, dotenv; "
+            "import evosql_platform.app.main"
+        ),
+    ]
+    try:
+        subprocess.check_output(command, cwd=ROOT, text=True, stderr=subprocess.STDOUT)
+        return True, ""
+    except subprocess.CalledProcessError as exc:
+        return False, (exc.output or str(exc)).strip()
+    except Exception as exc:
+        return False, str(exc)
+
+
+def choose_backend_python() -> Path:
+    failures: list[str] = []
+    for python in candidate_python_paths():
+        ok, error = python_supports_backend(python)
+        if ok:
+            return python
+        failures.append(f"{python} -> {error.splitlines()[-1] if error else 'unknown error'}")
+
+    details = "\n".join(f"  - {failure}" for failure in failures)
+    raise SystemExit(
+        "No Python interpreter with working backend dependencies was found.\n"
+        "Tried:\n"
+        f"{details}\n"
+        "Set BACKEND_PYTHON to a working python.exe or install requirements in your current environment."
+    )
 
 
 def can_bind(host: str, port: int) -> tuple[bool, str | None]:
@@ -69,5 +146,24 @@ def resolve_bind_target() -> tuple[str, int]:
 if __name__ == "__main__":
     host, port = resolve_bind_target()
     reload_enabled = os.getenv("RELOAD", "1").lower() not in {"0", "false", "no"}
+    backend_python = choose_backend_python()
+    if backend_python.resolve() != Path(sys.executable).resolve():
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(SRC)
+        env["HOST"] = host
+        env["PORT"] = str(port)
+        env["RELOAD"] = "1" if reload_enabled else "0"
+        print(f"Current Python is not usable for the backend; switching to {backend_python}")
+        raise SystemExit(subprocess.call([str(backend_python), str(__file__)], cwd=ROOT, env=env))
+
     print(f"Starting dev server on http://{host}:{port} (reload={'on' if reload_enabled else 'off'})")
-    uvicorn.run("main:app", host=host, port=port, reload=reload_enabled)
+    print(f"Python: {sys.executable}")
+    run_options = {
+        "host": host,
+        "port": port,
+        "reload": reload_enabled,
+        "app_dir": str(SRC),
+    }
+    if reload_enabled:
+        run_options["reload_dirs"] = [str(ROOT)]
+    uvicorn.run("evosql_platform.app.main:app", **run_options)

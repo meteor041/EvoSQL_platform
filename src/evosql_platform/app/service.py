@@ -7,7 +7,8 @@ from typing import Any
 
 from evosql_platform.app.audit import AuditLogStore
 from evosql_platform.app.charts import recommend_chart
-from evosql_platform.clients.mock import BirdReferenceClient
+from evosql_platform.clients.base import LLMClient
+from evosql_platform.clients.mock import BirdReferenceClient, DemoCampusLLMClient
 from evosql_platform.clients.qwen import QwenClient
 from evosql_platform.config import BIRD_DIR, CAMPUS_DIR, DEFAULT_TIMEOUT_SECONDS, MAX_SQL_ROWS
 from evosql_platform.datasets.bird import BirdDatasetLoader
@@ -28,6 +29,7 @@ class QueryService:
         self.sessions: dict[str, dict[str, Any]] = {}
         self.knowledge_resolver = DomainKnowledgeResolver()
         self.qwen_client = QwenClient()
+        self.demo_campus_client = DemoCampusLLMClient()
         self.bird_loader = BirdDatasetLoader(BIRD_DIR)
 
     def create_query(self, session_id: str, question: str, user_id: str, role: str, domain: str, llm_mode: str | None = None) -> QueryTask:
@@ -114,13 +116,16 @@ class QueryService:
         return self.create_query(task.session_id, rewritten_question, task.user_id, task.role, task.domain)
 
     def _campus_mode(self, requested_mode: str | None = None) -> str:
-        mode = (requested_mode or os.getenv("CAMPUS_LLM_MODE", "qwen")).strip().lower()
-        if mode in {"auto", "qwen"}:
+        mode = (requested_mode or os.getenv("CAMPUS_LLM_MODE", "auto")).strip().lower()
+        if mode not in {"auto", "mock", "qwen"}:
+            mode = "auto"
+        if mode == "auto":
+            return "qwen_openrouter" if self.qwen_client.is_available else "mock"
+        if mode == "qwen":
             return "qwen_openrouter"
-        return "qwen_openrouter"
+        return "mock"
 
-    def _build_engine(self, db_path: Path, allowed_tables: set[str], domain: str) -> EvoSqlEngine:
-        llm_client = self.qwen_client if domain == "campus" else BirdReferenceClient()
+    def _build_engine(self, db_path: Path, allowed_tables: set[str], llm_client: LLMClient) -> EvoSqlEngine:
         safety = SQLSafetyInterceptor(allowed_tables=allowed_tables, max_rows=MAX_SQL_ROWS)
         executor = SQLiteSandboxExecutor(db_path=db_path, timeout_seconds=DEFAULT_TIMEOUT_SECONDS, max_rows=MAX_SQL_ROWS)
         return EvoSqlEngine(llm_client=llm_client, scheduler=AdaptiveScheduler(), safety=safety, executor=executor)
@@ -131,8 +136,10 @@ class QueryService:
         knowledge = self.knowledge_resolver.resolve(question)
         pending = None
         mode = self._campus_mode(llm_mode)
+        use_qwen = mode == "qwen_openrouter"
+        campus_client: LLMClient = self.qwen_client if use_qwen else self.demo_campus_client
 
-        if not self.qwen_client.is_available:
+        if use_qwen and not self.qwen_client.is_available:
             result = EngineResult(
                 status="failed",
                 error="OPENROUTER_API_KEY is not configured. Real EvoSQL campus mode requires Qwen.",
@@ -150,7 +157,7 @@ class QueryService:
             user_id=user_id,
             role=role,
         )
-        schema_link = self.qwen_client.select_schema(linking_context, max_tables=6)
+        schema_link = campus_client.select_schema(linking_context, max_tables=6)
         linked_tables = self._expand_linked_tables(full_schema, schema_link.get("tables", []), knowledge)
         schema_subset = self.schema_registry.subset(full_schema, linked_tables)
         if not schema_subset.get("tables"):
@@ -173,25 +180,26 @@ class QueryService:
             role=role,
         )
         allowed_tables = set(full_schema["tables"].keys())
-        engine = self._build_engine(db_path, allowed_tables, "campus")
+        engine = self._build_engine(db_path, allowed_tables, campus_client)
 
         try:
             result = engine.run(context)
         except Exception as exc:
+            source = "Qwen" if use_qwen else "mock"
             result = EngineResult(
                 status="failed",
-                error=f"Qwen execution failed: {exc}",
+                error=f"{source} execution failed: {exc}",
                 execution_mode=mode,
-                result_source="qwen",
+                result_source="qwen" if use_qwen else "mock",
             )
             return result, pending
 
         result.execution_mode = mode
-        result.result_source = "qwen"
+        result.result_source = "qwen" if use_qwen else "mock"
         result.attempted_sql = result.final_sql
         result.attempted_result_rows = list(result.result_rows)
         result.attempted_candidate_records = list(result.candidate_records)
-        self._mark_candidate_statuses(result, source_prefix="real")
+        self._mark_candidate_statuses(result, source_prefix="real" if use_qwen else "mock")
         result.chart_spec = {
             "schema_linking": knowledge["schema_linking"],
         }
@@ -220,7 +228,7 @@ class QueryService:
             role=role,
         )
         allowed_tables = set(schema["tables"].keys())
-        engine = self._build_engine(db_path, allowed_tables, "bird")
+        engine = self._build_engine(db_path, allowed_tables, BirdReferenceClient())
         result = engine.run(context)
         result.execution_mode = "bird_reference"
         result.result_source = "bird_reference"
