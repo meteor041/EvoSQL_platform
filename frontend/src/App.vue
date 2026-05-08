@@ -10,11 +10,15 @@ const icons = {
   audit: '<path d="M9 12l2 2 4-4"/><path d="M12 3l8 4v6c0 4.4-3.4 7.6-8 8-4.6-.4-8-3.6-8-8V7l8-4z"/>',
   shield: '<path d="M12 3l8 4v6c0 4.4-3.4 7.6-8 8-4.6-.4-8-3.6-8-8V7l8-4z"/>',
   play: '<polygon points="6 4 20 12 6 20 6 4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   table: '<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 10h18M9 4v16"/>',
   filter: '<path d="M3 5h18M6 12h12M10 19h4"/>',
   refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  key: '<circle cx="7.5" cy="14.5" r="3.5"/><path d="M10 12l8-8M15 7l2 2M13 9l2 2"/>',
+  star: '<path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 16.9 6.6 19.8l1-6.1-4.4-4.3 6.1-.9L12 3z"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"/>',
   check: '<path d="M5 12l5 5L20 7"/>',
   warn: '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9l-8 13.4A2 2 0 0 0 4 20.4h16a2 2 0 0 0 1.7-3.1L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -48,6 +52,20 @@ const chartEl = ref(null)
 let chart = null
 let chartHost = null
 let resizeHandler = null
+let llmNoticeTimer = null
+
+const emptyLlmForm = () => ({
+  displayName: '',
+  provider: 'openrouter',
+  model: '',
+  baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+  apiKey: '',
+  temperature: 0.4,
+  timeoutSeconds: 45,
+  maxRetries: 2,
+  scope: 'campus',
+  notes: ''
+})
 
 const state = reactive({
   activeView: 'workbench',
@@ -74,7 +92,42 @@ const state = reactive({
   auditLoading: false,
   error: '',
   copiedSql: false,
-  expandedCandidates: {}
+  expandedCandidates: {},
+  llmConfigs: [
+    {
+      id: 'mock-campus',
+      displayName: '校园演示 Mock',
+      provider: 'mock',
+      model: 'campus-reference-qa',
+      baseUrl: 'local://campus_qa',
+      apiKeyMasked: 'not required',
+      temperature: 0,
+      timeoutSeconds: 2,
+      maxRetries: 0,
+      scope: 'campus',
+      enabled: true,
+      isDefault: true,
+      notes: 'local reference set'
+    },
+    {
+      id: 'openrouter-qwen',
+      displayName: 'OpenRouter Qwen',
+      provider: 'openrouter',
+      model: 'qwen/qwen3.6-plus:free',
+      baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+      apiKeyMasked: 'env:OPENROUTER_API_KEY',
+      temperature: 0.4,
+      timeoutSeconds: 45,
+      maxRetries: 2,
+      scope: 'campus',
+      enabled: false,
+      isDefault: false,
+      notes: 'qwen_openrouter'
+    }
+  ],
+  llmForm: emptyLlmForm(),
+  llmFormError: '',
+  llmSavedNotice: ''
 })
 
 const exampleQuestions = [
@@ -94,6 +147,14 @@ const navItems = [
   { id: 'trace', label: '推理链路', icon: 'trace' },
   { id: 'safety', label: '安全检查', icon: 'shield' },
   { id: 'audit', label: '审计日志', icon: 'audit' }
+]
+
+const llmProviderOptions = [
+  { value: 'openrouter', label: 'OpenRouter', defaultBaseUrl: 'https://openrouter.ai/api/v1/chat/completions' },
+  { value: 'dashscope', label: 'DashScope', defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions' },
+  { value: 'openai-compatible', label: 'OpenAI Compatible', defaultBaseUrl: '' },
+  { value: 'local', label: 'Local Endpoint', defaultBaseUrl: 'http://127.0.0.1:11434/v1/chat/completions' },
+  { value: 'mock', label: 'Mock', defaultBaseUrl: 'local://campus_qa' }
 ]
 
 const currentResultStatus = computed(() => state.result?.status || 'idle')
@@ -133,6 +194,14 @@ const hasChart = computed(() => {
 })
 const schemaLinking = computed(() => chartSpec.value?.schema_linking || null)
 const highlightedFinalSql = computed(() => highlightSql(state.result?.final_sql || ''))
+const enabledLlmCount = computed(() => state.llmConfigs.filter((item) => item.enabled).length)
+const defaultLlm = computed(() => state.llmConfigs.find((item) => item.isDefault) || state.llmConfigs[0] || null)
+const llmKpis = computed(() => [
+  { label: '已配置', value: String(state.llmConfigs.length), note: 'providers' },
+  { label: '已启用', value: String(enabledLlmCount.value), note: 'routing' },
+  { label: '默认模型', value: defaultLlm.value?.displayName || 'n/a', note: defaultLlm.value?.provider || 'n/a' },
+  { label: '作用域', value: String(new Set(state.llmConfigs.map((item) => item.scope)).size), note: 'domains' }
+])
 
 function domainLabel(value) {
   const labels = { campus: '校园综合库', bird: 'BIRD 数据集' }
@@ -142,6 +211,108 @@ function domainLabel(value) {
 function modeLabel(value) {
   const labels = { auto: 'auto', qwen: 'qwen', mock: 'mock' }
   return labels[value] || value || 'n/a'
+}
+
+function providerLabel(value) {
+  return llmProviderOptions.find((item) => item.value === value)?.label || value || 'n/a'
+}
+
+function maskSecret(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return 'not set'
+  if (raw.length <= 8) return '••••'
+  return `${raw.slice(0, 4)}••••${raw.slice(-4)}`
+}
+
+function applyProviderDefaults() {
+  const provider = llmProviderOptions.find((item) => item.value === state.llmForm.provider)
+  if (provider && (!state.llmForm.baseUrl || state.llmForm.baseUrl.startsWith('http') || state.llmForm.baseUrl.startsWith('local://'))) {
+    state.llmForm.baseUrl = provider.defaultBaseUrl
+  }
+  if (state.llmForm.provider === 'mock') {
+    state.llmForm.model = state.llmForm.model || 'campus-reference-qa'
+    state.llmForm.apiKey = ''
+    state.llmForm.temperature = 0
+    state.llmForm.timeoutSeconds = 2
+    state.llmForm.maxRetries = 0
+  }
+}
+
+function resetLlmForm() {
+  state.llmForm = emptyLlmForm()
+  state.llmFormError = ''
+}
+
+function showLlmNotice(message) {
+  state.llmSavedNotice = message
+  if (llmNoticeTimer) clearTimeout(llmNoticeTimer)
+  llmNoticeTimer = setTimeout(() => {
+    state.llmSavedNotice = ''
+  }, 1800)
+}
+
+function addLlmConfig() {
+  state.llmFormError = ''
+  const displayName = state.llmForm.displayName.trim()
+  const model = state.llmForm.model.trim()
+  const baseUrl = state.llmForm.baseUrl.trim()
+  if (!displayName || !model) {
+    state.llmFormError = '配置名称和模型 ID 不能为空。'
+    return
+  }
+  if (state.llmForm.provider !== 'mock' && !baseUrl) {
+    state.llmFormError = 'Base URL 不能为空。'
+    return
+  }
+  const config = {
+    id: `llm-${Date.now()}`,
+    displayName,
+    provider: state.llmForm.provider,
+    model,
+    baseUrl,
+    apiKeyMasked: maskSecret(state.llmForm.apiKey),
+    temperature: Number(state.llmForm.temperature),
+    timeoutSeconds: Number(state.llmForm.timeoutSeconds),
+    maxRetries: Number(state.llmForm.maxRetries),
+    scope: state.llmForm.scope,
+    enabled: true,
+    isDefault: state.llmConfigs.length === 0,
+    notes: state.llmForm.notes.trim()
+  }
+  state.llmConfigs.unshift(config)
+  resetLlmForm()
+  showLlmNotice('LLM 配置已新增。')
+}
+
+function setDefaultLlm(id) {
+  state.llmConfigs.forEach((item) => {
+    item.isDefault = item.id === id
+    if (item.id === id) item.enabled = true
+  })
+  showLlmNotice('默认模型已更新。')
+}
+
+function toggleLlm(id) {
+  const item = state.llmConfigs.find((config) => config.id === id)
+  if (!item) return
+  item.enabled = !item.enabled
+  if (!item.enabled && item.isDefault) {
+    item.isDefault = false
+    const nextDefault = state.llmConfigs.find((config) => config.enabled)
+    if (nextDefault) nextDefault.isDefault = true
+  }
+}
+
+function removeLlm(id) {
+  const removed = state.llmConfigs.find((item) => item.id === id)
+  state.llmConfigs = state.llmConfigs.filter((item) => item.id !== id)
+  if (removed?.isDefault) {
+    const nextDefault = state.llmConfigs.find((item) => item.enabled) || state.llmConfigs[0]
+    if (nextDefault) {
+      nextDefault.isDefault = true
+      nextDefault.enabled = true
+    }
+  }
 }
 
 function candidateStatusLabel(status) {
@@ -551,9 +722,15 @@ loadAuditLogs()
         </button>
 
         <div class="nav-group-label nav-system-label">系统</div>
-        <button class="nav-item" type="button">
+        <button
+          class="nav-item"
+          type="button"
+          :class="{ active: state.activeView === 'settings' }"
+          @click="state.activeView = 'settings'"
+        >
           <span class="icon"><IconSymbol name="cog" /></span>
-          <span>运行配置</span>
+          <span>模型设置</span>
+          <span class="count">{{ state.llmConfigs.length }}</span>
         </button>
         <button class="nav-item" type="button">
           <span class="icon"><IconSymbol name="shield" /></span>
@@ -578,7 +755,7 @@ loadAuditLogs()
             </div>
             <div class="page-actions">
               <button class="btn" type="button" @click="reloadAuditLogs"><IconSymbol name="refresh" />刷新审计</button>
-              <button class="btn" type="button"><IconSymbol name="cog" />高级设置</button>
+              <button class="btn" type="button" @click="state.activeView = 'settings'"><IconSymbol name="cog" />模型设置</button>
             </div>
           </div>
 
@@ -1173,6 +1350,182 @@ loadAuditLogs()
               </div>
             </div>
           </section>
+        </template>
+
+        <template v-else-if="state.activeView === 'settings'">
+          <div class="page-head">
+            <div>
+              <div class="page-title">模型设置</div>
+              <div class="page-sub">数据管理员维护 Text-to-SQL 可用 LLM 与默认路由</div>
+            </div>
+            <div class="page-actions">
+              <span v-if="state.llmSavedNotice" class="chip success"><span class="dot"></span>{{ state.llmSavedNotice }}</span>
+              <button class="btn" type="button" @click="resetLlmForm"><IconSymbol name="refresh" />重置表单</button>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="kpi-row">
+              <div v-for="item in llmKpis" :key="item.label" class="kpi">
+                <div class="kpi-label">{{ item.label }}</div>
+                <div class="kpi-value setting-kpi-value">{{ item.value }}</div>
+                <div class="kpi-delta flat">{{ item.note }}</div>
+              </div>
+            </div>
+
+            <div v-if="state.llmFormError" class="inline-error">
+              <IconSymbol name="warn" :size="14" />
+              <div><strong>配置未保存</strong> · {{ state.llmFormError }}</div>
+            </div>
+
+            <div class="settings-grid">
+              <section class="panel">
+                <header class="panel-head">
+                  <div class="panel-title">新增 LLM</div>
+                  <div class="panel-sub">provider / model / secret</div>
+                  <div class="panel-actions">
+                    <span class="chip info"><span class="dot"></span>admin only</span>
+                  </div>
+                </header>
+                <div class="panel-body">
+                  <div class="llm-form-grid">
+                    <div class="meta-field span-2">
+                      <label class="field-label">配置名称</label>
+                      <input v-model="state.llmForm.displayName" class="input" placeholder="例如：Qwen Plus 校园问数" />
+                    </div>
+                    <div class="meta-field">
+                      <label class="field-label">Provider</label>
+                      <select v-model="state.llmForm.provider" class="select" @change="applyProviderDefaults">
+                        <option v-for="item in llmProviderOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+                      </select>
+                    </div>
+                    <div class="meta-field">
+                      <label class="field-label">作用域</label>
+                      <select v-model="state.llmForm.scope" class="select">
+                        <option value="campus">campus</option>
+                        <option value="bird">bird</option>
+                        <option value="global">global</option>
+                      </select>
+                    </div>
+                    <div class="meta-field span-2">
+                      <label class="field-label">模型 ID</label>
+                      <input v-model="state.llmForm.model" class="input" placeholder="例如：qwen/qwen3.6-plus:free" />
+                    </div>
+                    <div class="meta-field span-2">
+                      <label class="field-label">Base URL</label>
+                      <input v-model="state.llmForm.baseUrl" class="input" placeholder="https://.../chat/completions" />
+                    </div>
+                    <div class="meta-field span-2">
+                      <label class="field-label">API Key</label>
+                      <input v-model="state.llmForm.apiKey" class="input secret-input" type="password" placeholder="保存后仅显示遮罩" />
+                    </div>
+                    <div class="meta-field">
+                      <label class="field-label">Temperature</label>
+                      <input v-model.number="state.llmForm.temperature" class="input" type="number" min="0" max="2" step="0.1" />
+                    </div>
+                    <div class="meta-field">
+                      <label class="field-label">Timeout(s)</label>
+                      <input v-model.number="state.llmForm.timeoutSeconds" class="input" type="number" min="1" max="180" step="1" />
+                    </div>
+                    <div class="meta-field">
+                      <label class="field-label">Retries</label>
+                      <input v-model.number="state.llmForm.maxRetries" class="input" type="number" min="0" max="5" step="1" />
+                    </div>
+                    <div class="meta-field span-2">
+                      <label class="field-label">备注</label>
+                      <textarea v-model="state.llmForm.notes" class="textarea llm-notes" rows="3" placeholder="用途、配额、负责人或上线窗口"></textarea>
+                    </div>
+                  </div>
+                  <div class="settings-actions">
+                    <button class="btn" type="button" @click="resetLlmForm">清空</button>
+                    <button class="btn primary" type="button" @click="addLlmConfig"><IconSymbol name="plus" />新增模型</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel">
+                <header class="panel-head">
+                  <div class="panel-title">默认路由</div>
+                  <div class="panel-sub">{{ defaultLlm?.model || 'no model' }}</div>
+                  <div class="panel-actions">
+                    <span class="chip" :class="defaultLlm?.enabled ? 'success' : 'pending'"><span class="dot"></span>{{ defaultLlm?.enabled ? 'enabled' : 'disabled' }}</span>
+                  </div>
+                </header>
+                <div class="panel-body">
+                  <div v-if="defaultLlm" class="default-model">
+                    <div class="default-icon"><IconSymbol name="star" :size="18" /></div>
+                    <div>
+                      <div class="default-title">{{ defaultLlm.displayName }}</div>
+                      <div class="default-sub">{{ providerLabel(defaultLlm.provider) }} · {{ defaultLlm.scope }}</div>
+                    </div>
+                  </div>
+                  <div class="sources-row">
+                    <div class="sources-label">model</div>
+                    <div class="source-line">{{ defaultLlm?.model || 'n/a' }}</div>
+                  </div>
+                  <div class="sources-row">
+                    <div class="sources-label">base url</div>
+                    <div class="source-line long">{{ defaultLlm?.baseUrl || 'n/a' }}</div>
+                  </div>
+                  <div class="sources-row">
+                    <div class="sources-label">secret</div>
+                    <div class="source-line">{{ defaultLlm?.apiKeyMasked || 'n/a' }}</div>
+                  </div>
+                  <div class="route-policy">
+                    <div class="route-step"><span>1</span><strong>auto</strong><em>优先默认启用模型</em></div>
+                    <div class="route-step"><span>2</span><strong>qwen</strong><em>强制真实模型</em></div>
+                    <div class="route-step"><span>3</span><strong>mock</strong><em>本地演示兜底</em></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="panel">
+              <header class="panel-head">
+                <div class="panel-title">LLM 配置列表</div>
+                <div class="panel-sub">{{ state.llmConfigs.length }} models</div>
+              </header>
+              <div class="panel-body flush">
+                <div class="llm-list">
+                  <article v-for="item in state.llmConfigs" :key="item.id" class="llm-row" :class="{ disabled: !item.enabled, default: item.isDefault }">
+                    <div class="llm-main">
+                      <div class="llm-avatar"><IconSymbol :name="item.isDefault ? 'star' : 'key'" :size="16" /></div>
+                      <div class="llm-title-wrap">
+                        <div class="llm-title">
+                          {{ item.displayName }}
+                          <span v-if="item.isDefault" class="chip selected"><span class="dot"></span>default</span>
+                        </div>
+                        <div class="llm-sub">{{ providerLabel(item.provider) }} · {{ item.model }}</div>
+                      </div>
+                    </div>
+                    <div class="llm-cell">
+                      <div class="llm-label">scope</div>
+                      <div class="llm-value">{{ item.scope }}</div>
+                    </div>
+                    <div class="llm-cell">
+                      <div class="llm-label">runtime</div>
+                      <div class="llm-value">{{ item.temperature }} temp · {{ item.timeoutSeconds }}s · {{ item.maxRetries }} retry</div>
+                    </div>
+                    <div class="llm-cell secret-cell">
+                      <div class="llm-label">key</div>
+                      <div class="llm-value">{{ item.apiKeyMasked }}</div>
+                    </div>
+                    <div class="llm-actions">
+                      <button class="btn sm" type="button" :disabled="item.isDefault" @click="setDefaultLlm(item.id)">
+                        <IconSymbol name="star" :size="13" />默认
+                      </button>
+                      <button class="btn sm" type="button" @click="toggleLlm(item.id)">
+                        <IconSymbol :name="item.enabled ? 'x' : 'check'" :size="13" />{{ item.enabled ? '停用' : '启用' }}
+                      </button>
+                      <button class="btn sm danger" type="button" @click="removeLlm(item.id)">
+                        <IconSymbol name="trash" :size="13" />删除
+                      </button>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </section>
+          </div>
         </template>
       </div>
     </main>
