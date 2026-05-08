@@ -1,6 +1,7 @@
 <script setup>
 import * as echarts from 'echarts'
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import logoUrl from '../../assets/logo.png'
 
 const icons = {
   workbench: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
@@ -849,7 +850,7 @@ loadLlmConfigs()
   <div class="shell">
     <header class="header shell-header">
       <div class="header-brand">
-        <div class="brand-mark">EQ</div>
+        <img class="brand-mark" :src="logoUrl" alt="EvoSQL Platform logo" />
         <div>
           <div class="brand-title">校园智慧问数平台</div>
           <div class="brand-sub">Natural Language -&gt; Safe SQL</div>

@@ -80,3 +80,7 @@ set OPENROUTER_API_KEY=你的key
 说明：
 - `auto` / `qwen` 模式下，如果真实模型生成失败、被安全拦截、结果为空或输出明显异常，会自动回退到 mock 演示链路。
 - 结果摘要也会优先走 Qwen，失败后回退为本地模板摘要。
+
+## Screenshot
+
+![EvoSQL Platform example](assets/example.png)
