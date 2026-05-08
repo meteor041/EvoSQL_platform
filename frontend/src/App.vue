@@ -208,6 +208,21 @@ function providerLabel(value) {
   return llmProviderOptions.find((item) => item.value === value)?.label || value || 'n/a'
 }
 
+function formatAuditTime(value) {
+  if (!value) return '时间未知'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(date)
+}
+
 function maskSecret(value) {
   const raw = String(value || '').trim()
   if (!raw) return 'not set'
@@ -1369,7 +1384,7 @@ loadLlmConfigs()
                     <div class="empty-sub">尝试调整筛选条件或刷新日志</div>
                   </div>
                   <div v-for="item in state.auditLogs" :key="item.timestamp + item.task_id" class="audit-item">
-                    <div class="audit-time">{{ item.timestamp }}</div>
+                    <div class="audit-time">{{ formatAuditTime(item.timestamp) }}</div>
                     <div class="audit-q" :title="item.question">
                       {{ item.question }}
                       <span class="meta">· candidates {{ item.candidate_count || 0 }}</span>
@@ -1491,7 +1506,7 @@ loadLlmConfigs()
             <div class="panel-body flush">
               <div class="audit-list">
                 <div v-for="item in state.auditLogs" :key="item.timestamp + item.task_id" class="audit-item">
-                  <div class="audit-time">{{ item.timestamp }}</div>
+                  <div class="audit-time">{{ formatAuditTime(item.timestamp) }}</div>
                   <div class="audit-q">{{ item.question }}</div>
                   <div class="audit-user audit-user-cell"><div class="avatar av">管</div><span class="name">{{ item.user_id || 'demo-user' }}</span></div>
                   <div class="audit-domain">{{ item.domain }}</div>
