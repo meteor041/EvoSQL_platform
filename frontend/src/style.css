@@ -591,9 +591,7 @@ pre {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
-  background: var(--surface-2);
-  border-top: 1px solid var(--border);
+  padding-top: 12px;
 }
 
 .composer-hints {
