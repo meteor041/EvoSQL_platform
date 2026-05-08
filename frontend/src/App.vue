@@ -90,40 +90,11 @@ const state = reactive({
   },
   loading: false,
   auditLoading: false,
+  llmLoading: false,
   error: '',
   copiedSql: false,
   expandedCandidates: {},
   llmConfigs: [
-    {
-      id: 'mock-campus',
-      displayName: '校园演示 Mock',
-      provider: 'mock',
-      model: 'campus-reference-qa',
-      baseUrl: 'local://campus_qa',
-      apiKeyMasked: 'not required',
-      temperature: 0,
-      timeoutSeconds: 2,
-      maxRetries: 0,
-      scope: 'campus',
-      enabled: true,
-      isDefault: true,
-      notes: 'local reference set'
-    },
-    {
-      id: 'openrouter-qwen',
-      displayName: 'OpenRouter Qwen',
-      provider: 'openrouter',
-      model: 'qwen/qwen3.6-plus:free',
-      baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
-      apiKeyMasked: 'env:OPENROUTER_API_KEY',
-      temperature: 0.4,
-      timeoutSeconds: 45,
-      maxRetries: 2,
-      scope: 'campus',
-      enabled: false,
-      isDefault: false,
-      notes: 'qwen_openrouter'
-    }
   ],
   llmForm: emptyLlmForm(),
   llmFormError: '',
@@ -224,6 +195,40 @@ function maskSecret(value) {
   return `${raw.slice(0, 4)}••••${raw.slice(-4)}`
 }
 
+function normalizeLlmConfig(item) {
+  return {
+    id: item.id,
+    displayName: item.displayName || item.display_name || '',
+    provider: item.provider || '',
+    model: item.model || '',
+    baseUrl: item.baseUrl || item.base_url || '',
+    apiKeyMasked: item.apiKeyMasked || item.api_key_masked || 'not set',
+    temperature: Number(item.temperature ?? 0.4),
+    timeoutSeconds: Number(item.timeoutSeconds ?? item.timeout_seconds ?? 45),
+    maxRetries: Number(item.maxRetries ?? item.max_retries ?? 2),
+    scope: item.scope || 'campus',
+    enabled: Boolean(item.enabled),
+    isDefault: Boolean(item.isDefault ?? item.is_default),
+    notes: item.notes || '',
+    createdAt: item.createdAt || item.created_at || '',
+    updatedAt: item.updatedAt || item.updated_at || ''
+  }
+}
+
+async function loadLlmConfigs() {
+  state.llmLoading = true
+  try {
+    const res = await fetch('/api/settings/llms')
+    const data = await readJsonResponse(res, 'Load LLM settings failed')
+    if (!res.ok) throw new Error(data.detail || 'Load LLM settings failed')
+    state.llmConfigs = (data.items || []).map(normalizeLlmConfig)
+  } catch (error) {
+    state.error = error.message || String(error)
+  } finally {
+    state.llmLoading = false
+  }
+}
+
 function applyProviderDefaults() {
   const provider = llmProviderOptions.find((item) => item.value === state.llmForm.provider)
   if (provider && (!state.llmForm.baseUrl || state.llmForm.baseUrl.startsWith('http') || state.llmForm.baseUrl.startsWith('local://'))) {
@@ -251,7 +256,7 @@ function showLlmNotice(message) {
   }, 1800)
 }
 
-function addLlmConfig() {
+async function addLlmConfig() {
   state.llmFormError = ''
   const displayName = state.llmForm.displayName.trim()
   const model = state.llmForm.model.trim()
@@ -264,54 +269,70 @@ function addLlmConfig() {
     state.llmFormError = 'Base URL 不能为空。'
     return
   }
-  const config = {
-    id: `llm-${Date.now()}`,
-    displayName,
-    provider: state.llmForm.provider,
-    model,
-    baseUrl,
-    apiKeyMasked: maskSecret(state.llmForm.apiKey),
-    temperature: Number(state.llmForm.temperature),
-    timeoutSeconds: Number(state.llmForm.timeoutSeconds),
-    maxRetries: Number(state.llmForm.maxRetries),
-    scope: state.llmForm.scope,
-    enabled: true,
-    isDefault: state.llmConfigs.length === 0,
-    notes: state.llmForm.notes.trim()
+  try {
+    const res = await fetch('/api/settings/llms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        display_name: displayName,
+        provider: state.llmForm.provider,
+        model,
+        base_url: baseUrl,
+        api_key: state.llmForm.apiKey,
+        temperature: Number(state.llmForm.temperature),
+        timeout_seconds: Number(state.llmForm.timeoutSeconds),
+        max_retries: Number(state.llmForm.maxRetries),
+        scope: state.llmForm.scope,
+        notes: state.llmForm.notes.trim()
+      })
+    })
+    const data = await readJsonResponse(res, 'Create LLM setting failed')
+    if (!res.ok) throw new Error(data.detail || 'Create LLM setting failed')
+    resetLlmForm()
+    await loadLlmConfigs()
+    showLlmNotice('LLM 配置已新增。')
+  } catch (error) {
+    state.llmFormError = error.message || String(error)
   }
-  state.llmConfigs.unshift(config)
-  resetLlmForm()
-  showLlmNotice('LLM 配置已新增。')
 }
 
-function setDefaultLlm(id) {
-  state.llmConfigs.forEach((item) => {
-    item.isDefault = item.id === id
-    if (item.id === id) item.enabled = true
-  })
-  showLlmNotice('默认模型已更新。')
+async function setDefaultLlm(id) {
+  try {
+    const res = await fetch(`/api/settings/llms/${id}/default`, { method: 'POST' })
+    const data = await readJsonResponse(res, 'Set default LLM failed')
+    if (!res.ok) throw new Error(data.detail || 'Set default LLM failed')
+    await loadLlmConfigs()
+    showLlmNotice('默认模型已更新。')
+  } catch (error) {
+    state.error = error.message || String(error)
+  }
 }
 
-function toggleLlm(id) {
+async function toggleLlm(id) {
   const item = state.llmConfigs.find((config) => config.id === id)
   if (!item) return
-  item.enabled = !item.enabled
-  if (!item.enabled && item.isDefault) {
-    item.isDefault = false
-    const nextDefault = state.llmConfigs.find((config) => config.enabled)
-    if (nextDefault) nextDefault.isDefault = true
+  try {
+    const res = await fetch(`/api/settings/llms/${id}/enabled`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: !item.enabled })
+    })
+    const data = await readJsonResponse(res, 'Update LLM setting failed')
+    if (!res.ok) throw new Error(data.detail || 'Update LLM setting failed')
+    await loadLlmConfigs()
+  } catch (error) {
+    state.error = error.message || String(error)
   }
 }
 
-function removeLlm(id) {
-  const removed = state.llmConfigs.find((item) => item.id === id)
-  state.llmConfigs = state.llmConfigs.filter((item) => item.id !== id)
-  if (removed?.isDefault) {
-    const nextDefault = state.llmConfigs.find((item) => item.enabled) || state.llmConfigs[0]
-    if (nextDefault) {
-      nextDefault.isDefault = true
-      nextDefault.enabled = true
-    }
+async function removeLlm(id) {
+  try {
+    const res = await fetch(`/api/settings/llms/${id}`, { method: 'DELETE' })
+    const data = await readJsonResponse(res, 'Delete LLM setting failed')
+    if (!res.ok) throw new Error(data.detail || 'Delete LLM setting failed')
+    await loadLlmConfigs()
+  } catch (error) {
+    state.error = error.message || String(error)
   }
 }
 
@@ -676,10 +697,12 @@ window.addEventListener('resize', resizeHandler)
 
 onBeforeUnmount(() => {
   disposeChart()
+  if (llmNoticeTimer) clearTimeout(llmNoticeTimer)
   if (resizeHandler) window.removeEventListener('resize', resizeHandler)
 })
 
 loadAuditLogs()
+loadLlmConfigs()
 </script>
 
 <template>
@@ -1359,6 +1382,7 @@ loadAuditLogs()
               <div class="page-sub">数据管理员维护 Text-to-SQL 可用 LLM 与默认路由</div>
             </div>
             <div class="page-actions">
+              <span v-if="state.llmLoading" class="chip pending"><span class="dot"></span>loading</span>
               <span v-if="state.llmSavedNotice" class="chip success"><span class="dot"></span>{{ state.llmSavedNotice }}</span>
               <button class="btn" type="button" @click="resetLlmForm"><IconSymbol name="refresh" />重置表单</button>
             </div>

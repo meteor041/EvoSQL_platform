@@ -7,6 +7,7 @@ from typing import Any
 
 from evosql_platform.app.audit import AuditLogStore
 from evosql_platform.app.charts import recommend_chart
+from evosql_platform.app.llm_settings import LLMSettingsStore
 from evosql_platform.clients.base import LLMClient
 from evosql_platform.clients.mock import BirdReferenceClient, DemoCampusLLMClient
 from evosql_platform.clients.qwen import QwenClient
@@ -25,6 +26,7 @@ class QueryService:
     def __init__(self) -> None:
         self.schema_registry = SchemaRegistry()
         self.audit_store = AuditLogStore()
+        self.llm_settings_store = LLMSettingsStore()
         self.tasks: dict[str, QueryTask] = {}
         self.sessions: dict[str, dict[str, Any]] = {}
         self.knowledge_resolver = DomainKnowledgeResolver()

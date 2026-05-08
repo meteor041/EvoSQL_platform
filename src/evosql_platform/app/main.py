@@ -40,6 +40,23 @@ class FollowupRequest(BaseModel):
     answer: str
 
 
+class LLMConfigRequest(BaseModel):
+    display_name: str
+    provider: str
+    model: str
+    base_url: str = ""
+    api_key: str = ""
+    temperature: float = 0.4
+    timeout_seconds: int = 45
+    max_retries: int = 2
+    scope: str = "campus"
+    notes: str = ""
+
+
+class LLMEnabledRequest(BaseModel):
+    enabled: bool
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(static_dir / "index.html")
@@ -135,3 +152,57 @@ def audit_logs(
 @app.post("/api/audit/reload")
 def reload_audit_logs() -> dict:
     return service.audit_store.reload()
+
+
+@app.get("/api/settings/llms")
+def list_llm_configs() -> dict:
+    return {"items": service.llm_settings_store.list_configs()}
+
+
+@app.post("/api/settings/llms")
+def create_llm_config(payload: LLMConfigRequest) -> dict:
+    try:
+        item = service.llm_settings_store.create_config(
+            {
+                "display_name": payload.display_name,
+                "provider": payload.provider,
+                "model": payload.model,
+                "base_url": payload.base_url,
+                "api_key": payload.api_key,
+                "temperature": payload.temperature,
+                "timeout_seconds": payload.timeout_seconds,
+                "max_retries": payload.max_retries,
+                "scope": payload.scope,
+                "notes": payload.notes,
+            }
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"item": item}
+
+
+@app.post("/api/settings/llms/{config_id}/default")
+def set_default_llm(config_id: str) -> dict:
+    try:
+        item = service.llm_settings_store.set_default(config_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="LLM config not found") from exc
+    return {"item": item}
+
+
+@app.patch("/api/settings/llms/{config_id}/enabled")
+def set_llm_enabled(config_id: str, payload: LLMEnabledRequest) -> dict:
+    try:
+        item = service.llm_settings_store.set_enabled(config_id, payload.enabled)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="LLM config not found") from exc
+    return {"item": item}
+
+
+@app.delete("/api/settings/llms/{config_id}")
+def delete_llm_config(config_id: str) -> dict:
+    try:
+        service.llm_settings_store.delete_config(config_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="LLM config not found") from exc
+    return {"deleted": True}
